@@ -1,0 +1,75 @@
+"""Tests for storage/client.py"""
+
+import pytest
+
+from storage.client import DBClient, Transaction
+
+
+@pytest.fixture
+def client():
+    db = DBClient(db_path=":memory:")
+    db._conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS transactions (
+            id        INTEGER PRIMARY KEY AUTOINCREMENT,
+            prompt    TEXT    NOT NULL,
+            timestamp TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+            response  TEXT    NOT NULL
+        )
+        """
+    )
+    db._conn.commit()
+    yield db
+    db.close()
+
+
+# --- insert / query_by_id ---
+
+
+def test_insert_and_query_by_id(client):
+    row_id = client.insert("hello", "world")
+    result = client.query_by_id(row_id)
+
+    assert isinstance(result, Transaction)
+    assert result.id == row_id
+    assert result.prompt == "hello"
+    assert result.response == "world"
+    assert result.timestamp  # non-empty ISO string
+
+
+def test_query_by_id_missing_returns_none(client):
+    assert client.query_by_id(999) is None
+
+
+# --- list_all ---
+
+
+def test_list_all_returns_ordered_transactions(client):
+    client.insert("first", "resp_a")
+    client.insert("second", "resp_b")
+    results = client.list_all()
+
+    assert len(results) == 2
+    assert results[0].prompt == "first"
+    assert results[1].prompt == "second"
+
+
+def test_list_all_empty_returns_empty_list(client):
+    assert client.list_all() == []
+
+
+# --- latest ---
+
+
+def test_latest_returns_most_recent(client):
+    client.insert("older", "resp_a")
+    client.insert("newer", "resp_b")
+
+    result = client.latest()
+
+    assert result is not None
+    assert result.prompt == "newer"
+
+
+def test_latest_empty_returns_none(client):
+    assert client.latest() is None
