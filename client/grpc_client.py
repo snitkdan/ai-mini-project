@@ -33,6 +33,8 @@ def main() -> None:
         print(f"  Prompt    : {record.prompt}")
         print(f"  Response  : {record.response}")
         print("=" * 60)
+    
+    db.close()
 
 
 if __name__ == "__main__":

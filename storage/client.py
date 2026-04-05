@@ -20,16 +20,20 @@ class Transaction:
 class DBClient:
     def __init__(self, db_path: Path = DB_PATH) -> None:
         self._db_path: Path = db_path
+        self._conn: sqlite3.Connection = self._connect()
 
     def _connect(self) -> sqlite3.Connection:
         conn: sqlite3.Connection = sqlite3.connect(self._db_path)
         conn.row_factory = sqlite3.Row
         return conn
 
+    def close(self) -> None:
+        """Close the underlying database connection."""
+        self._conn.close()
+
     def insert(self, prompt: str, response: str) -> int:
         """Insert a new transaction row and return the new row id."""
-        conn: sqlite3.Connection = self._connect()
-        cursor: sqlite3.Cursor = conn.cursor()
+        cursor: sqlite3.Cursor = self._conn.cursor()
         cursor.execute(
             """
             INSERT INTO transactions (prompt, timestamp, response)
@@ -41,21 +45,18 @@ class DBClient:
             """,
             (prompt, response),
         )
-        conn.commit()
+        self._conn.commit()
         row_id: int = cursor.lastrowid  # type: ignore[assignment]
-        conn.close()
         return row_id
 
     def query_by_id(self, row_id: int) -> Optional[Transaction]:
         """Return a single transaction by primary key, or None if not found."""
-        conn: sqlite3.Connection = self._connect()
-        cursor: sqlite3.Cursor = conn.cursor()
+        cursor: sqlite3.Cursor = self._conn.cursor()
         cursor.execute(
             "SELECT id, prompt, timestamp, response FROM transactions WHERE id = ?",
             (row_id,),
         )
         row: Optional[sqlite3.Row] = cursor.fetchone()
-        conn.close()
         if row is None:
             return None
         return Transaction(
@@ -67,13 +68,11 @@ class DBClient:
 
     def list_all(self) -> list[Transaction]:
         """Return all transactions ordered by id ascending."""
-        conn: sqlite3.Connection = self._connect()
-        cursor: sqlite3.Cursor = conn.cursor()
+        cursor: sqlite3.Cursor = self._conn.cursor()
         cursor.execute(
             "SELECT id, prompt, timestamp, response FROM transactions ORDER BY id ASC"
         )
         rows: list[sqlite3.Row] = cursor.fetchall()
-        conn.close()
         return [
             Transaction(
                 id=row["id"],
@@ -86,13 +85,11 @@ class DBClient:
 
     def latest(self) -> Optional[Transaction]:
         """Return the most recently inserted transaction, or None if empty."""
-        conn: sqlite3.Connection = self._connect()
-        cursor: sqlite3.Cursor = conn.cursor()
+        cursor: sqlite3.Cursor = self._conn.cursor()
         cursor.execute(
             "SELECT id, prompt, timestamp, response FROM transactions ORDER BY id DESC LIMIT 1"
         )
         row: Optional[sqlite3.Row] = cursor.fetchone()
-        conn.close()
         if row is None:
             return None
         return Transaction(

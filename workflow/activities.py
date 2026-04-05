@@ -41,4 +41,5 @@ async def save_to_db(prompt: str, response: str) -> int:
 
     db = DBClient()
     row_id: int = db.insert(prompt=prompt, response=response)
+    db.close()
     return row_id
