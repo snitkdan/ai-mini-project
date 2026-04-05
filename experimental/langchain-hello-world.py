@@ -1,11 +1,17 @@
-# Load environment variables (e.g., GOOGLE_API_KEY) from a .env file
+# Load environment variables (e.g., GOOGLE_API_KEY, BRAINTRUST_API_KEY) from a .env file
+import os
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.callbacks.base import BaseCallbackHandler
+from braintrust import init_logger
+from braintrust.integrations.langchain import BraintrustCallbackHandler
 
 load_dotenv()
+
+# Initialize Braintrust logger — traces will appear under this project in the UI
+init_logger(project="ai-mini-project", api_key=os.environ.get("BRAINTRUST_API_KEY"))
 
 # Custom callback handler that hooks into LangChain's event system to log
 # each stage of the chain's execution as it happens
@@ -74,12 +80,18 @@ parser = StrOutputParser()
 #   └───────────┘    └─────┘    └────────┘
 chain = prompt | llm | parser
 
-# Instantiate the logger; it will be passed into the chain at call time
+# Instantiate both callbacks:
+#   - StepLogger: prints each stage to stdout for local debugging
+#   - BraintrustCallbackHandler: ships traces to the Braintrust UI
 logger = StepLogger()
+bt_handler = BraintrustCallbackHandler()
 
 # Collect input from the user at the terminal, then run it through the full
-# chain with the logger attached so every stage is printed to stdout
+# chain with both callbacks attached so every stage is printed and traced
 user_input = input("You: ")
-response = chain.invoke({"user_input": user_input}, config={"callbacks": [logger]})
+response = chain.invoke(
+    {"user_input": user_input},
+    config={"callbacks": [logger, bt_handler]},
+)
 
 print(f"\nGemini: {response}")

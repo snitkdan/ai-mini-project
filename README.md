@@ -62,3 +62,6 @@ python -m client.grpc_client "What is the speed of light?"
 
 # View Gemini usage here
 https://aistudio.google.com/
+
+# Braintrust
+https://www.braintrust.dev/app/snitkdan-test/p/My%20Project?onboarding=true
