@@ -28,7 +28,7 @@ class GeminiEchoWorkflow:
 
         await workflow.execute_activity(
             save_to_db,
-            args=[prompt, response],
+            args=[prompt, response, True],
             start_to_close_timeout=_DB_TIMEOUT,
             retry_policy=_RETRY_POLICY,
         )

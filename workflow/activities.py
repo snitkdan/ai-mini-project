@@ -35,11 +35,12 @@ async def call_gemini(prompt: str) -> str:
 
 
 @activity.defn
-async def save_to_db(prompt: str, response: str) -> int:
+async def save_to_db(prompt: str, response: str, close_db: bool) -> int:
     """Persist prompt + response to the transactions table, return new row id."""
     from storage.client import DBClient
 
     db = DBClient()
     row_id: int = db.insert(prompt=prompt, response=response)
-    db.close()
+    if close_db:
+        db.close()
     return row_id
