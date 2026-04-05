@@ -6,7 +6,7 @@ import asyncio
 from temporalio.client import Client
 from temporalio.worker import Worker
 
-from workflow.activities import call_gemini, save_to_db
+from workflow.activities import call_gemini, save_to_db, open_db_connection, close_db_connection
 from workflow.workflow import GeminiEchoWorkflow
 
 TEMPORAL_ADDRESS: str = "localhost:7233"
@@ -19,7 +19,7 @@ async def main() -> None:
         client,
         task_queue=TASK_QUEUE,
         workflows=[GeminiEchoWorkflow],
-        activities=[call_gemini, save_to_db],
+        activities=[call_gemini, open_db_connection, close_db_connection, save_to_db],
     )
 
     print(f"Worker started — task queue: {TASK_QUEUE!r}  server: {TEMPORAL_ADDRESS}")
