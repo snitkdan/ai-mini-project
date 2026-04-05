@@ -1,3 +1,8 @@
+## Init'ing the virtual env
+```
+$ source .venv/bin/activate
+```
+
 ## For managing Gemini API keys / rate-limits
 https://aistudio.google.com/
 

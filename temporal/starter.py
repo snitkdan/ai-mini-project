@@ -1,18 +1,15 @@
 #!/usr/bin/env python3
 
 import asyncio
-from temporalio.client import Client
-from workflow import GreetingWorkflow
+import grpc
+from generated import greeter_pb2, greeter_pb2_grpc
+
 
 async def main():
-    client = await Client.connect("localhost:7233")
-    result = await client.execute_workflow(
-        GreetingWorkflow.run,
-        "World",
-        id="greeting-workflow-1",
-        task_queue="greeting-queue",
-    )
-    print(f"Result: {result}")
+    async with grpc.aio.insecure_channel("localhost:50051") as channel:
+        stub = greeter_pb2_grpc.GreeterServiceStub(channel)
+        response = await stub.Greet(greeter_pb2.GreetRequest(name="Temporal"))
+        print(f"Result: {response.message}")
 
 
 asyncio.run(main())

@@ -1,0 +1,21 @@
+// To re-gen stubs:
+// python -m grpc_tools.protoc \
+//   -I proto \
+//   --python_out=generated \
+//   --grpc_python_out=generated \
+//   proto/greeter.proto
+syntax = "proto3";
+
+package greeter;
+
+service GreeterService {
+  rpc Greet (GreetRequest) returns (GreetResponse);
+}
+
+message GreetRequest {
+  string name = 1;
+}
+
+message GreetResponse {
+  string message = 1;
+}
