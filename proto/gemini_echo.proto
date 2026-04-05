@@ -1,0 +1,22 @@
+// Compiling the proto:
+// python -m grpc_tools.protoc \
+//   -I proto \
+//   --python_out=proto/generated \
+//   --grpc_python_out=proto/generated \
+//   proto/gemini_echo.proto
+
+syntax = "proto3";
+
+package gemini_echo;
+
+service GeminiEchoServer {
+  rpc Echo (GeminiEchoRequest) returns (GeminiEchoResponse);
+}
+
+message GeminiEchoRequest {
+  string prompt = 1;
+}
+
+message GeminiEchoResponse {
+  string output = 1;
+}

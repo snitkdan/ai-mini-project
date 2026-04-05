@@ -1,16 +1,61 @@
-## Init'ing the virtual env
+# gemini-echo
+
+A gRPC → Temporal → Gemini API → SQLite pipeline.
+
+## Architecture
+
 ```
-$ source .venv/bin/activate
+grpc_client  →  grpc_server  →  Temporal (GeminiEchoWorkflow)
+                                     ├─ activity: call_gemini  → Gemini API
+                                     └─ activity: save_to_db   → SQLite
 ```
 
-## For managing Gemini API keys / rate-limits
-https://aistudio.google.com/
+## Setup order (one-time)
 
-## For Temporal workflows
-```
-$ temporal server start-dev
-$ ./worker # in 1 terminal
-$ ./kick-off-workflow # in another terminal
+### 1. Compile proto stubs
+
+```bash
+python -m grpc_tools.protoc \
+  -I proto \
+  --python_out=proto/generated \
+  --grpc_python_out=proto/generated \
+  proto/gemini_echo.proto
 ```
 
-To see Temporal UI: http://localhost:8233
+### 2. Initialise the database
+
+```bash
+python storage/init_db.py
+```
+
+### 3. Add your Gemini API key
+
+```bash
+echo "GEMINI_API_KEY=your_key_here" > .env
+```
+
+## Running (3 terminals, all from project root)
+
+### Terminal 1 — Temporal dev server
+
+```bash
+temporal server start-dev
+```
+
+### Terminal 2 — Temporal worker
+
+```bash
+python -m workflow.worker
+```
+
+### Terminal 3 — gRPC server
+
+```bash
+python -m server.grpc_server
+```
+
+## Sending a prompt
+
+```bash
+python -m client.grpc_client "What is the speed of light?"
+```
