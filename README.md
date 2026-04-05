@@ -59,3 +59,6 @@ python -m server.grpc_server
 ```bash
 python -m client.grpc_client "What is the speed of light?"
 ```
+
+# View Gemini usage here
+https://aistudio.google.com/
