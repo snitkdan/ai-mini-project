@@ -1,18 +1,14 @@
 #!/usr/bin/env python3
 
 from datetime import timedelta
-from temporalio import activity, workflow
-
-@activity.defn
-async def say_hello(name: str) -> str:
-    return f"Hello, {name}!"
+from temporalio import workflow
 
 @workflow.defn
 class GreetingWorkflow:
     @workflow.run
-    async def run(self, name: str) -> str:
+    async def run(self, prompt: str) -> str:
         return await workflow.execute_activity(
-            say_hello,
-            name,
-            start_to_close_timeout=timedelta(seconds=10),
+            "say_hello",
+            prompt,
+            start_to_close_timeout=timedelta(seconds=60),
         )

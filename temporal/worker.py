@@ -3,7 +3,8 @@
 import asyncio
 from temporalio.client import Client
 from temporalio.worker import Worker
-from workflow import GreetingWorkflow, say_hello
+from workflow import GreetingWorkflow
+from activities import say_hello
 
 
 async def main():

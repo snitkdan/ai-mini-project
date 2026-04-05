@@ -13,6 +13,7 @@ class GreeterServicer(greeter_pb2_grpc.GreeterServiceServicer):
         self.temporal_client = temporal_client
 
     async def Greet(self, request, context):
+        print(f"Got a greet request: {request}")
         result = await self.temporal_client.execute_workflow(
             GreetingWorkflow.run,
             request.name,
