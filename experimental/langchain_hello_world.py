@@ -8,11 +8,6 @@ from langchain_core.callbacks.base import BaseCallbackHandler
 from braintrust import init_logger
 from braintrust.integrations.langchain import BraintrustCallbackHandler
 
-load_dotenv()
-
-# Initialize Braintrust logger — traces will appear under this project in the UI
-init_logger(project="ai-mini-project", api_key=os.environ.get("BRAINTRUST_API_KEY"))
-
 # Custom callback handler that hooks into LangChain's event system to log
 # each stage of the chain's execution as it happens
 class StepLogger(BaseCallbackHandler):
@@ -49,7 +44,6 @@ class StepLogger(BaseCallbackHandler):
     def on_chain_error(self, error, **kwargs):
         print(f"[CHAIN ERROR] ✗ {error}")
 
-
 # Define the prompt template that injects user input into a fixed system+human
 # message structure before sending to the LLM
 #
@@ -63,35 +57,42 @@ prompt = ChatPromptTemplate.from_messages([
     ("human", "{user_input}"),
 ])
 
-# Instantiate the Gemini model client that will handle the actual API call
-llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash")
-
 # Parser that strips the raw AIMessage wrapper and returns a plain Python string
 parser = StrOutputParser()
 
-# Compose the three components into a single pipeline using LangChain's pipe
-# operator — data flows left to right through each stage:
-#
-#   {"user_input": ...}
-#         │
-#         ▼
-#   ┌───────────┐    ┌─────┐    ┌────────┐
-#   │  prompt   │───►│ llm │───►│ parser │───► str
-#   └───────────┘    └─────┘    └────────┘
-chain = prompt | llm | parser
+if __name__ == "__main__":
+    load_dotenv()
 
-# Instantiate both callbacks:
-#   - StepLogger: prints each stage to stdout for local debugging
-#   - BraintrustCallbackHandler: ships traces to the Braintrust UI
-logger = StepLogger()
-bt_handler = BraintrustCallbackHandler()
+    # Initialize Braintrust logger — traces will appear under this project in the UI
+    init_logger(project="ai-mini-project", api_key=os.environ.get("BRAINTRUST_API_KEY"))
 
-# Collect input from the user at the terminal, then run it through the full
-# chain with both callbacks attached so every stage is printed and traced
-user_input = input("You: ")
-response = chain.invoke(
-    {"user_input": user_input},
-    config={"callbacks": [logger, bt_handler]},
-)
+    # Instantiate the Gemini model client that will handle the actual API call
+    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash")
 
-print(f"\nGemini: {response}")
+    # Compose the three components into a single pipeline using LangChain's pipe
+    # operator — data flows left to right through each stage:
+    #
+    #   {"user_input": ...}
+    #         │
+    #         ▼
+    #   ┌───────────┐    ┌─────┐    ┌────────┐
+    #   │  prompt   │───►│ llm │───►│ parser │───► str
+    #   └───────────┘    └─────┘    └────────┘
+    chain = prompt | llm | parser
+
+    # Instantiate both callbacks:
+    #   - StepLogger: prints each stage to stdout for local debugging
+    #   - BraintrustCallbackHandler: ships traces to the Braintrust UI
+    logger = StepLogger()
+    bt_handler = BraintrustCallbackHandler()
+
+    # Collect input from the user at the terminal, then run it through the full
+    # chain with both callbacks attached so every stage is printed and traced
+    # ... all your existing setup code (prompt, llm, parser, StepLogger, etc.) ...
+    user_input = input("You: ")
+    response = chain.invoke(
+        {"user_input": user_input},
+        config={"callbacks": [logger, bt_handler]},
+    )
+
+    print(f"\nGemini: {response}")
