@@ -65,3 +65,6 @@ https://aistudio.google.com/
 
 # Braintrust
 https://www.braintrust.dev/app/snitkdan-test/p/My%20Project?onboarding=true
+
+# Google Account (for AppPasswords)
+https://myaccount.google.com/
