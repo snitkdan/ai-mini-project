@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
 """Unit tests for Temporal activities."""
 
-import json
-
-import httpx
 import pytest
-import respx
 from pathlib import Path
 from unittest.mock import patch
+
+from langchain_core.language_models.fake_chat_models import FakeListChatModel
 
 from workflow.activities import (
     _DB_REGISTRY,
@@ -15,7 +13,6 @@ from workflow.activities import (
     close_db_connection,
     open_db_connection,
     save_to_db,
-    GEMINI_URL,
 )
 
 
@@ -43,9 +40,8 @@ def _make_db_client():
     return db
 
 
-MOCK_GEMINI_RESPONSE = {
-    "candidates": [{"content": {"parts": [{"text": "Hello from Gemini!"}]}}]
-}
+def _fake_llm(response: str = "Hello from Gemini!") -> FakeListChatModel:
+    return FakeListChatModel(responses=[response])
 
 
 # ---------------------------------------------------------------------------
@@ -53,43 +49,43 @@ MOCK_GEMINI_RESPONSE = {
 # ---------------------------------------------------------------------------
 
 
-@respx.mock
 @pytest.mark.asyncio
 async def test_call_gemini_returns_text():
-    """Happy path: correct text is extracted from the Gemini response."""
-    respx.post(GEMINI_URL).mock(
-        return_value=httpx.Response(200, json=MOCK_GEMINI_RESPONSE)
-    )
-
-    result = await call_gemini("Say hello")
+    """Happy path: correct text is returned from the chain."""
+    with patch("workflow.activities.ChatGoogleGenerativeAI", return_value=_fake_llm()):
+        result = await call_gemini("Say hello")
 
     assert result == "Hello from Gemini!"
 
 
-@respx.mock
 @pytest.mark.asyncio
 async def test_call_gemini_sends_prompt_in_body():
-    """The prompt is forwarded correctly in the request payload."""
-    route = respx.post(GEMINI_URL).mock(
-        return_value=httpx.Response(200, json=MOCK_GEMINI_RESPONSE)
-    )
+    """The prompt is forwarded correctly through the chain."""
+    captured = {}
+    original = FakeListChatModel._generate
 
-    await call_gemini("My test prompt")
+    def capturing_generate(self, messages, **kwargs):
+        captured["messages"] = messages
+        return original(self, messages, **kwargs)
 
-    body = json.loads(route.calls.last.request.content)
-    assert body["contents"][0]["parts"][0]["text"] == "My test prompt"
+    with patch("workflow.activities.ChatGoogleGenerativeAI", return_value=_fake_llm()):
+        with patch.object(FakeListChatModel, "_generate", capturing_generate):
+            await call_gemini("My test prompt")
+
+    assert "My test prompt" in captured["messages"][-1].content
 
 
-@respx.mock
 @pytest.mark.asyncio
-async def test_call_gemini_raises_on_http_error():
-    """A non-2xx response causes httpx to raise."""
-    respx.post(GEMINI_URL).mock(
-        return_value=httpx.Response(500, json={"error": "boom"})
-    )
-
-    with pytest.raises(httpx.HTTPStatusError):
-        await call_gemini("Trigger error")
+async def test_call_gemini_raises_on_llm_error():
+    """An exception from the LLM propagates out of call_gemini."""
+    with patch("workflow.activities.ChatGoogleGenerativeAI", return_value=_fake_llm()):
+        with patch.object(
+            FakeListChatModel,
+            "_generate",
+            side_effect=RuntimeError("LLM unavailable"),
+        ):
+            with pytest.raises(RuntimeError, match="LLM unavailable"):
+                await call_gemini("Trigger error")
 
 
 # ---------------------------------------------------------------------------
@@ -99,14 +95,14 @@ async def test_call_gemini_raises_on_http_error():
 
 @pytest.mark.asyncio
 async def test_open_db_connection_registers_client():
-    """open_db_connection returns a UUID string and adds an entry to the registry."""
+    """open_db_connection returns a UUID and adds an entry to the registry."""
     fake_db = _make_db_client()
 
     with patch("storage.client.DBClient", return_value=fake_db):
         conn_id = await open_db_connection()
 
     try:
-        assert isinstance(conn_id, str) and len(conn_id) == 36  # UUID format
+        assert isinstance(conn_id, str) and len(conn_id) == 36
         assert _DB_REGISTRY[conn_id] is fake_db
     finally:
         _DB_REGISTRY.pop(conn_id, None)
@@ -129,7 +125,7 @@ async def test_close_db_connection_deregisters_and_closes():
 @pytest.mark.asyncio
 async def test_close_db_connection_unknown_id_is_noop():
     """Closing an unrecognised connection id does not raise."""
-    await close_db_connection("nonexistent-id")  # should not raise
+    await close_db_connection("nonexistent-id")
 
 
 # ---------------------------------------------------------------------------

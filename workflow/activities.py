@@ -8,14 +8,11 @@ from datetime import timedelta
 import httpx
 from dotenv import load_dotenv
 from temporalio import activity
-
-load_dotenv()
-
-GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
-GEMINI_URL: str = (
-    "https://generativelanguage.googleapis.com/v1beta"
-    "/models/gemini-2.5-flash:generateContent"
-)
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from braintrust import init_logger
+from braintrust.integrations.langchain import BraintrustCallbackHandler
 
 # Worker-local registry: connection_id → DBClient instance
 _DB_REGISTRY: dict[str, "DBClient"] = {}
@@ -41,16 +38,21 @@ async def close_db_connection(conn_id: str) -> None:
 
 @activity.defn
 async def call_gemini(prompt: str) -> str:
-    """POST prompt to the Gemini API and return the text response."""
-    params: dict[str, str] = {"key": GEMINI_API_KEY}
-    payload: dict = {"contents": [{"parts": [{"text": prompt}]}]}
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        resp = await client.post(GEMINI_URL, params=params, json=payload)
-        resp.raise_for_status()
+    load_dotenv()
+    init_logger(project="ai-mini-project", api_key=os.environ.get("BRAINTRUST_API_KEY"))
 
-    data: dict = resp.json()
-    return data["candidates"][0]["content"]["parts"][0]["text"]
+    chat_prompt = ChatPromptTemplate.from_messages([
+        ("system", "You are a friendly assistant."),
+        ("human", "{prompt}"),
+    ])
+    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash")
 
+    parser = StrOutputParser()
+    chain = chat_prompt | llm | parser
+
+    config={"callbacks": [BraintrustCallbackHandler()]}
+    response = chain.invoke({"prompt": prompt}, config=config)
+    return response
 
 @activity.defn
 async def save_to_db(conn_id: str, prompt: str, response: str) -> int:
