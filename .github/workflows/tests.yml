@@ -39,3 +39,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: black --check .
+
+  smoke-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    container: *ci-container
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash start.sh --smoke-test
