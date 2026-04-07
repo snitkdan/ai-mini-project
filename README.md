@@ -2,7 +2,7 @@
 
 A gRPC → Temporal → Gemini API → SQLite pipeline.
 
-## Architecture
+# Architecture
 
 ```
 grpc_client  →  grpc_server  →  Temporal (GeminiEchoWorkflow)
@@ -10,7 +10,7 @@ grpc_client  →  grpc_server  →  Temporal (GeminiEchoWorkflow)
                                      └─ activity: save_to_db   → SQLite
 ```
 
-## Setup order (one-time)
+# Setup order
 
 ### 1. Compile proto stubs
 
@@ -34,8 +34,16 @@ python storage/init_db.py
 echo "GEMINI_API_KEY=your_key_here" > .env
 ```
 
-## Running (3 terminals, all from project root)
+# Running (3 terminals, all from project root)
+## Script-based
+```
+$ ./start.sh
+```
+Kicks off background jobs for temporal, worker, and gRPC server. 
 
+Check running background jobs with `$ jobs -l`.
+
+## Manual
 ### Terminal 1 — Temporal dev server
 
 ```bash
@@ -60,11 +68,12 @@ python -m server.grpc_server
 python -m client.grpc_client "What is the speed of light?"
 ```
 
-# View Gemini usage here
+# Links / Credentials
+## View Gemini usage here
 https://aistudio.google.com/
 
-# Braintrust
+## Braintrust
 https://www.braintrust.dev/app/snitkdan-test/p/My%20Project?onboarding=true
-
-# Google Account (for AppPasswords)
+ 
+## Google Account (for AppPasswords)
 https://myaccount.google.com/
