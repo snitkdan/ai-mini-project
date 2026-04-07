@@ -11,7 +11,6 @@ from temporalio.worker import Worker
 
 from workflow.workflow import GeminiEchoWorkflow
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------

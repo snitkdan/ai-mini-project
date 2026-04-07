@@ -9,9 +9,10 @@ from storage.client import DBClient, Transaction
 
 GRPC_TARGET: str = "localhost:50051"
 
+
 def main() -> None:
     if len(sys.argv) != 2:
-        print("Usage: python -m client.grpc_client \"<prompt>\"")
+        print('Usage: python -m client.grpc_client "<prompt>"')
         sys.exit(1)
 
     prompt: str = sys.argv[1]
@@ -33,7 +34,7 @@ def main() -> None:
         print(f"  Prompt    : {record.prompt}")
         print(f"  Response  : {record.response}")
         print("=" * 60)
-    
+
     db.close()
 
 

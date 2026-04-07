@@ -8,6 +8,7 @@ from langchain_core.callbacks.base import BaseCallbackHandler
 from braintrust import init_logger
 from braintrust.integrations.langchain import BraintrustCallbackHandler
 
+
 # Custom callback handler that hooks into LangChain's event system to log
 # each stage of the chain's execution as it happens
 class StepLogger(BaseCallbackHandler):
@@ -44,6 +45,7 @@ class StepLogger(BaseCallbackHandler):
     def on_chain_error(self, error, **kwargs):
         print(f"[CHAIN ERROR] ✗ {error}")
 
+
 # Define the prompt template that injects user input into a fixed system+human
 # message structure before sending to the LLM
 #
@@ -52,10 +54,12 @@ class StepLogger(BaseCallbackHandler):
 #   │  human:  "{user_input}"  ◄── filled │
 #   │           at invoke time            │
 #   └─────────────────────────────────────┘
-prompt = ChatPromptTemplate.from_messages([
-    ("system", "You are a friendly assistant."),
-    ("human", "{user_input}"),
-])
+prompt = ChatPromptTemplate.from_messages(
+    [
+        ("system", "You are a friendly assistant."),
+        ("human", "{user_input}"),
+    ]
+)
 
 # Parser that strips the raw AIMessage wrapper and returns a plain Python string
 parser = StrOutputParser()

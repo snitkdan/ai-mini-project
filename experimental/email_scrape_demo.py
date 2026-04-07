@@ -16,9 +16,11 @@ def decode_text(value: str | None) -> str:
     if not value:
         return ""
     return "".join(
-        part.decode(charset or "utf-8", errors="replace")
-        if isinstance(part, bytes)
-        else part
+        (
+            part.decode(charset or "utf-8", errors="replace")
+            if isinstance(part, bytes)
+            else part
+        )
         for part, charset in decode_header(value)
     )
 
@@ -28,8 +30,7 @@ def plain_body(msg: Message) -> str:
         for part in msg.walk():
             if (
                 part.get_content_type() == "text/plain"
-                and "attachment"
-                not in str(part.get("Content-Disposition", "")).lower()
+                and "attachment" not in str(part.get("Content-Disposition", "")).lower()
             ):
                 payload = part.get_payload(decode=True) or b""
                 charset = part.get_content_charset() or "utf-8"

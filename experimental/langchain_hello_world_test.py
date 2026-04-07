@@ -4,8 +4,8 @@ from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableLambda
 from langchain_hello_world import prompt, parser
 
-
 # ── Chain integration tests (LLM mocked) ───────────────────────────────────
+
 
 class TestChainIntegration:
     """Test the full chain with the LLM call mocked out."""
@@ -37,6 +37,7 @@ class TestChainIntegration:
 
 
 # ── Prompt template tests ───────────────────────────────────────────────────
+
 
 class TestPromptTemplate:
     def test_prompt_formats_correctly(self):

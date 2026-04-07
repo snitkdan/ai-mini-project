@@ -62,16 +62,12 @@ class DBClient:
     def list_all(self) -> list[Transaction]:
         """Return all transactions ordered by id ascending."""
         cursor: sqlite3.Cursor = self._conn.cursor()
-        cursor.execute(
-            "SELECT * FROM transactions ORDER BY id ASC"
-        )
+        cursor.execute("SELECT * FROM transactions ORDER BY id ASC")
         return [self._row_to_transaction(row) for row in cursor.fetchall()]
 
     def latest(self) -> Optional[Transaction]:
         """Return the most recently inserted transaction, or None if empty."""
         cursor: sqlite3.Cursor = self._conn.cursor()
-        cursor.execute(
-            "SELECT * FROM transactions ORDER BY id DESC LIMIT 1"
-        )
+        cursor.execute("SELECT * FROM transactions ORDER BY id DESC LIMIT 1")
         row: Optional[sqlite3.Row] = cursor.fetchone()
         return self._row_to_transaction(row) if row is not None else None

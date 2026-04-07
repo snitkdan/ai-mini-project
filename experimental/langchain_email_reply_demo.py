@@ -18,19 +18,20 @@ from langchain_core.callbacks.base import BaseCallbackHandler
 from braintrust import init_logger
 from braintrust.integrations.langchain import BraintrustCallbackHandler
 
-
 SENDER = "thelastdan1@gmail.com"
 WIDTH = 64
 
-refine_prompt = ChatPromptTemplate.from_messages([
-    (
-        "system",
-        "You are a professional email assistant. "
-        "Rewrite the user's draft reply to be more professional and concise. "
-        "Return only the rewritten email body, no extra commentary.",
-    ),
-    ("human", "{draft_reply}"),
-])
+refine_prompt = ChatPromptTemplate.from_messages(
+    [
+        (
+            "system",
+            "You are a professional email assistant. "
+            "Rewrite the user's draft reply to be more professional and concise. "
+            "Return only the rewritten email body, no extra commentary.",
+        ),
+        ("human", "{draft_reply}"),
+    ]
+)
 
 
 class StepLogger(BaseCallbackHandler):
@@ -60,13 +61,16 @@ class StepLogger(BaseCallbackHandler):
 
 # ── IMAP helpers ──────────────────────────────────────────────────────────────
 
+
 def decode_text(value: str | None) -> str:
     if not value:
         return ""
     return "".join(
-        part.decode(charset or "utf-8", errors="replace")
-        if isinstance(part, bytes)
-        else part
+        (
+            part.decode(charset or "utf-8", errors="replace")
+            if isinstance(part, bytes)
+            else part
+        )
         for part, charset in decode_header(value)
     )
 
@@ -76,8 +80,7 @@ def plain_body(msg: Message) -> str:
         for part in msg.walk():
             if (
                 part.get_content_type() == "text/plain"
-                and "attachment"
-                not in str(part.get("Content-Disposition", "")).lower()
+                and "attachment" not in str(part.get("Content-Disposition", "")).lower()
             ):
                 payload = part.get_payload(decode=True) or b""
                 charset = part.get_content_charset() or "utf-8"
@@ -111,10 +114,12 @@ def msg_datetime(msg: Message):
         return parsedate_to_datetime(date_str)
     except Exception:
         from datetime import datetime, timezone
+
         return datetime.min.replace(tzinfo=timezone.utc)
 
 
 # ── Print helpers ─────────────────────────────────────────────────────────────
+
 
 def print_rule(char: str = "─") -> None:
     print(char * WIDTH)
@@ -141,6 +146,7 @@ def print_message(msg: Message, label: str) -> None:
 
 # ── SMTP helper ───────────────────────────────────────────────────────────────
 
+
 def send_reply(
     sender: str,
     receiver: str,
@@ -163,7 +169,7 @@ def send_reply(
         server.login(sender, password)
         server.sendmail(sender, receiver, msg.as_string())
 
-    print(f"\n✅ Reply sent to {receiver} with subject: \"{subject}\"")
+    print(f'\n✅ Reply sent to {receiver} with subject: "{subject}"')
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────

@@ -39,10 +39,15 @@ class StepLogger(BaseCallbackHandler):
 
 
 # Prompt for generating a subject line from the email body
-subject_prompt = ChatPromptTemplate.from_messages([
-    ("system", "You are a helpful assistant. Generate a concise, professional email subject line for the given message body. Return only the subject line, no extra text."),
-    ("human", "Email body:\n{email_body}"),
-])
+subject_prompt = ChatPromptTemplate.from_messages(
+    [
+        (
+            "system",
+            "You are a helpful assistant. Generate a concise, professional email subject line for the given message body. Return only the subject line, no extra text.",
+        ),
+        ("human", "Email body:\n{email_body}"),
+    ]
+)
 
 parser = StrOutputParser()
 
@@ -59,7 +64,7 @@ def send_email(sender: str, receiver: str, password: str, subject: str, body: st
         server.login(sender, password)
         server.sendmail(sender, receiver, msg.as_string())
 
-    print(f"\n✅ Email sent to {receiver} with subject: \"{subject}\"")
+    print(f'\n✅ Email sent to {receiver} with subject: "{subject}"')
 
 
 if __name__ == "__main__":

@@ -15,7 +15,6 @@ from workflow.activities import (
     save_to_db,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -26,16 +25,14 @@ def _make_db_client():
     from storage.client import DBClient
 
     db = DBClient(db_path=Path(":memory:"))
-    db._conn.execute(
-        """
+    db._conn.execute("""
         CREATE TABLE IF NOT EXISTS transactions (
             id        INTEGER PRIMARY KEY AUTOINCREMENT,
             prompt    TEXT    NOT NULL,
             timestamp TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
             response  TEXT    NOT NULL
         )
-        """
-    )
+        """)
     db._conn.commit()
     return db
 
@@ -98,7 +95,8 @@ async def test_open_db_connection_registers_client():
     """open_db_connection returns a UUID and adds an entry to the registry."""
     fake_db = _make_db_client()
 
-    with patch("storage.client.DBClient", return_value=fake_db):
+    with patch("workflow.activities.DBClient") as MockDBClient:
+        MockDBClient.return_value = fake_db
         conn_id = await open_db_connection()
 
     try:
