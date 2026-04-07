@@ -67,6 +67,17 @@ python -m server.grpc_server
 ```bash
 python -m client.grpc_client "What is the speed of light?"
 ```
+# CI / Docker
+Dockerfile contains the deps, docker.yml contains the container image workflow, tests.yml contains the actual CI jobs based on this container image. 
+
+## Running docker file locally
+```i
+$ colima start # starts the docker daemon
+$ docker build -t ci-test . # build the container locally
+$ docker run --rm -it -v "$PWD:/app" -w /app ci-test sh # interactive shell within container
+$ # run commands like you would in the venv
+$ colima stop
+```
 
 # Links / Credentials
 ## View Gemini usage here

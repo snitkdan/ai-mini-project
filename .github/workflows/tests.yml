@@ -2,54 +2,40 @@ name: CI
 
 on: [push, pull_request]
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: read
+      packages: read
+    container: &ci-container
+      image: ghcr.io/${{ github.repository }}/ci:latest
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     steps:
-      - uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Run tests
-        run: pytest -v
+      - uses: actions/checkout@v4
+      - run: pytest -v
 
   typecheck:
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: read
+      packages: read
+    container: *ci-container
     steps:
-      - uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Run mypy
-        run: mypy .
+      - uses: actions/checkout@v4
+      - run: mypy .
 
   format:
     runs-on: ubuntu-latest
-
+    permissions:
+      contents: read
+      packages: read
+    container: *ci-container
     steps:
-      - uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.11"
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Check formatting
-        run: black --check .
+      - uses: actions/checkout@v4
+      - run: black --check .
