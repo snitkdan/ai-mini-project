@@ -2,19 +2,16 @@
 """SQLite client for the transactions table."""
 
 import sqlite3
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
+from storage.schema import CREATE_TABLE_SQL, Transaction
+from storage.protocol import TransactionStore
+
+# Re-export so existing `from storage.client import Transaction` imports still work.
+__all__ = ["DBClient", "Transaction", "TransactionStore"]
+
 DB_PATH: Path = Path(__file__).parent.parent / "gemini_echo.db"
-
-
-@dataclass
-class Transaction:
-    id: int
-    prompt: str
-    timestamp: str
-    response: str
 
 
 class DBClient:
@@ -26,6 +23,9 @@ class DBClient:
         conn: sqlite3.Connection = sqlite3.connect(self._db_path)
         conn.row_factory = sqlite3.Row
         return conn
+
+    def _row_to_transaction(self, row: sqlite3.Row) -> Transaction:
+        return Transaction(**{k: row[k] for k in row.keys()})
 
     def close(self) -> None:
         """Close the underlying database connection."""
@@ -53,48 +53,25 @@ class DBClient:
         """Return a single transaction by primary key, or None if not found."""
         cursor: sqlite3.Cursor = self._conn.cursor()
         cursor.execute(
-            "SELECT id, prompt, timestamp, response FROM transactions WHERE id = ?",
+            "SELECT * FROM transactions WHERE id = ?",
             (row_id,),
         )
         row: Optional[sqlite3.Row] = cursor.fetchone()
-        if row is None:
-            return None
-        return Transaction(
-            id=row["id"],
-            prompt=row["prompt"],
-            timestamp=row["timestamp"],
-            response=row["response"],
-        )
+        return self._row_to_transaction(row) if row is not None else None
 
     def list_all(self) -> list[Transaction]:
         """Return all transactions ordered by id ascending."""
         cursor: sqlite3.Cursor = self._conn.cursor()
         cursor.execute(
-            "SELECT id, prompt, timestamp, response FROM transactions ORDER BY id ASC"
+            "SELECT * FROM transactions ORDER BY id ASC"
         )
-        rows: list[sqlite3.Row] = cursor.fetchall()
-        return [
-            Transaction(
-                id=row["id"],
-                prompt=row["prompt"],
-                timestamp=row["timestamp"],
-                response=row["response"],
-            )
-            for row in rows
-        ]
+        return [self._row_to_transaction(row) for row in cursor.fetchall()]
 
     def latest(self) -> Optional[Transaction]:
         """Return the most recently inserted transaction, or None if empty."""
         cursor: sqlite3.Cursor = self._conn.cursor()
         cursor.execute(
-            "SELECT id, prompt, timestamp, response FROM transactions ORDER BY id DESC LIMIT 1"
+            "SELECT * FROM transactions ORDER BY id DESC LIMIT 1"
         )
         row: Optional[sqlite3.Row] = cursor.fetchone()
-        if row is None:
-            return None
-        return Transaction(
-            id=row["id"],
-            prompt=row["prompt"],
-            timestamp=row["timestamp"],
-            response=row["response"],
-        )
+        return self._row_to_transaction(row) if row is not None else None

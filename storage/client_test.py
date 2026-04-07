@@ -3,24 +3,24 @@
 import pytest
 
 from storage.client import DBClient, Transaction
+from storage.protocol import TransactionStore
+from storage.schema import CREATE_TABLE_SQL
 
 
 @pytest.fixture
 def client():
     db = DBClient(db_path=":memory:")
-    db._conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS transactions (
-            id        INTEGER PRIMARY KEY AUTOINCREMENT,
-            prompt    TEXT    NOT NULL,
-            timestamp TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-            response  TEXT    NOT NULL
-        )
-        """
-    )
+    db._conn.execute(CREATE_TABLE_SQL)
     db._conn.commit()
     yield db
     db.close()
+
+
+# --- protocol ---
+
+
+def test_dbclient_satisfies_protocol(client):
+    assert isinstance(client, TransactionStore)
 
 
 # --- insert / query_by_id ---
