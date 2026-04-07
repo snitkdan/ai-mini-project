@@ -2,10 +2,13 @@
 """Unit tests for the GeminiEchoWorkflow using Temporal's testing framework."""
 
 import uuid
-import pytest
+from collections.abc import AsyncGenerator, Sequence
+from typing import Any, cast
 
+import pytest
 from temporalio import activity
 from temporalio.client import WorkflowFailureError
+from temporalio.exceptions import ActivityError
 from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Worker
 
@@ -17,7 +20,7 @@ from workflow.workflow import GeminiEchoWorkflow
 
 
 @pytest.fixture(scope="module")
-async def workflow_env():
+async def workflow_env() -> AsyncGenerator[WorkflowEnvironment, None]:
     async with await WorkflowEnvironment.start_time_skipping() as env:
         yield env
 
@@ -32,7 +35,7 @@ _FAKE_CONN_ID = "fake-conn-id"
 async def _run_workflow(
     env: WorkflowEnvironment,
     prompt: str,
-    mock_activities: list,
+    mock_activities: Sequence[Any],
 ) -> str:
     """Start and await the workflow inside the given test environment."""
     async with Worker(
@@ -50,10 +53,10 @@ async def _run_workflow(
 
 
 def make_mock_activities(
-    gemini_return=None,
-    gemini_raises=None,
-    save_return=1,
-):
+    gemini_return: str = "",
+    gemini_raises: Exception | None = None,
+    save_return: int = 1,
+) -> list[Any]:
     """
     Build fake @activity.defn functions that share the registered names of
     the real activities. The Worker will dispatch to these instead.
@@ -65,16 +68,18 @@ def make_mock_activities(
 
     @activity.defn(name="close_db_connection")
     async def fake_close_db_connection(conn_id: str) -> None:
-        pass
+        _ = conn_id
 
     @activity.defn(name="call_gemini")
     async def fake_call_gemini(prompt: str) -> str:
-        if gemini_raises:
+        _ = prompt
+        if gemini_raises is not None:
             raise gemini_raises
         return gemini_return
 
     @activity.defn(name="save_to_db")
     async def fake_save_to_db(conn_id: str, prompt: str, response: str) -> int:
+        _ = (conn_id, prompt, response)
         return save_return
 
     return [
@@ -91,7 +96,9 @@ def make_mock_activities(
 
 
 @pytest.mark.asyncio
-async def test_workflow_returns_gemini_response(workflow_env):
+async def test_workflow_returns_gemini_response(
+    workflow_env: WorkflowEnvironment,
+) -> None:
     """Workflow returns whatever call_gemini resolves to."""
     mocks = make_mock_activities(gemini_return="mocked response")
 
@@ -101,9 +108,11 @@ async def test_workflow_returns_gemini_response(workflow_env):
 
 
 @pytest.mark.asyncio
-async def test_workflow_calls_save_with_conn_id_prompt_and_response(workflow_env):
-    """save_to_db is called with the conn_id, original prompt, and Gemini's response."""
-    received: list = []
+async def test_workflow_calls_save_with_conn_id_prompt_and_response(
+    workflow_env: WorkflowEnvironment,
+) -> None:
+    """save_to_db is called with conn_id, original prompt, and Gemini response."""
+    received: list[tuple[str, str, str]] = []
 
     @activity.defn(name="open_db_connection")
     async def fake_open_db_connection() -> str:
@@ -111,10 +120,11 @@ async def test_workflow_calls_save_with_conn_id_prompt_and_response(workflow_env
 
     @activity.defn(name="close_db_connection")
     async def fake_close_db_connection(conn_id: str) -> None:
-        pass
+        _ = conn_id
 
     @activity.defn(name="call_gemini")
     async def fake_call_gemini(prompt: str) -> str:
+        _ = prompt
         return "gemini says hi"
 
     @activity.defn(name="save_to_db")
@@ -137,20 +147,27 @@ async def test_workflow_calls_save_with_conn_id_prompt_and_response(workflow_env
 
 
 @pytest.mark.asyncio
-async def test_workflow_propagates_gemini_failure(workflow_env):
+async def test_workflow_propagates_gemini_failure(
+    workflow_env: WorkflowEnvironment,
+) -> None:
     """If call_gemini raises after retries, the workflow itself fails."""
     mocks = make_mock_activities(gemini_raises=Exception("Gemini is down"))
 
     with pytest.raises(WorkflowFailureError) as exc_info:
         await _run_workflow(workflow_env, "any prompt", mocks)
 
-    # WorkflowFailureError → ActivityError → ApplicationError("Gemini is down")
-    cause = exc_info.value.cause.cause
+    workflow_err = cast(WorkflowFailureError, exc_info.value)
+    activity_err = cast(ActivityError, workflow_err.cause)
+    cause = activity_err.cause
+
+    assert cause is not None
     assert "Gemini is down" in str(cause)
 
 
 @pytest.mark.asyncio
-async def test_workflow_does_not_call_save_on_gemini_failure(workflow_env):
+async def test_workflow_does_not_call_save_on_gemini_failure(
+    workflow_env: WorkflowEnvironment,
+) -> None:
     """save_to_db is never called if call_gemini fails."""
     save_called = False
 
@@ -160,14 +177,16 @@ async def test_workflow_does_not_call_save_on_gemini_failure(workflow_env):
 
     @activity.defn(name="close_db_connection")
     async def fake_close_db_connection(conn_id: str) -> None:
-        pass
+        _ = conn_id
 
     @activity.defn(name="call_gemini")
     async def fake_call_gemini(prompt: str) -> str:
+        _ = prompt
         raise Exception("Gemini is down")
 
     @activity.defn(name="save_to_db")
     async def fake_save_to_db(conn_id: str, prompt: str, response: str) -> int:
+        _ = (conn_id, prompt, response)
         nonlocal save_called
         save_called = True
         return 1
@@ -188,8 +207,10 @@ async def test_workflow_does_not_call_save_on_gemini_failure(workflow_env):
 
 
 @pytest.mark.asyncio
-async def test_workflow_always_closes_connection_on_success(workflow_env):
-    """close_db_connection is called with the correct conn_id on the happy path."""
+async def test_workflow_always_closes_connection_on_success(
+    workflow_env: WorkflowEnvironment,
+) -> None:
+    """close_db_connection is called with the correct conn_id on success."""
     closed_ids: list[str] = []
 
     @activity.defn(name="open_db_connection")
@@ -202,10 +223,12 @@ async def test_workflow_always_closes_connection_on_success(workflow_env):
 
     @activity.defn(name="call_gemini")
     async def fake_call_gemini(prompt: str) -> str:
+        _ = prompt
         return "response"
 
     @activity.defn(name="save_to_db")
     async def fake_save_to_db(conn_id: str, prompt: str, response: str) -> int:
+        _ = (conn_id, prompt, response)
         return 1
 
     await _run_workflow(
@@ -223,7 +246,9 @@ async def test_workflow_always_closes_connection_on_success(workflow_env):
 
 
 @pytest.mark.asyncio
-async def test_workflow_always_closes_connection_on_gemini_failure(workflow_env):
+async def test_workflow_always_closes_connection_on_gemini_failure(
+    workflow_env: WorkflowEnvironment,
+) -> None:
     """close_db_connection is still called even if call_gemini fails."""
     closed_ids: list[str] = []
 
@@ -237,10 +262,12 @@ async def test_workflow_always_closes_connection_on_gemini_failure(workflow_env)
 
     @activity.defn(name="call_gemini")
     async def fake_call_gemini(prompt: str) -> str:
+        _ = prompt
         raise Exception("Gemini is down")
 
     @activity.defn(name="save_to_db")
     async def fake_save_to_db(conn_id: str, prompt: str, response: str) -> int:
+        _ = (conn_id, prompt, response)
         return 1
 
     with pytest.raises(WorkflowFailureError):
