@@ -1,12 +1,3 @@
-// Compiling the proto:
-// python -m grpc_tools.protoc \
-//   -I proto \
-//   --python_out=proto/generated \
-//   --grpc_python_out=proto/generated \
-//   --mypy_out=proto/generated \
-//   --mypy_grpc_out=proto/generated \
-//   proto/gemini_echo.proto
-
 syntax = "proto3";
 
 package gemini_echo;

@@ -40,7 +40,17 @@ jobs:
       - uses: actions/checkout@v4
       - run: black --check .
 
-  smoke-test:
+  proto-gen:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    container: *ci-container
+    steps:
+      - uses: actions/checkout@v4
+      - run: python proto/regen_proto.py --check
+
+  services-start:
     runs-on: ubuntu-latest
     permissions:
       contents: read

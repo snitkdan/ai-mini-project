@@ -15,11 +15,7 @@ grpc_client  →  grpc_server  →  Temporal (GeminiEchoWorkflow)
 ### 1. Compile proto stubs
 
 ```bash
-python -m grpc_tools.protoc \
-  -I proto \
-  --python_out=proto/generated \
-  --grpc_python_out=proto/generated \
-  proto/gemini_echo.proto
+python -m proto.regen_proto
 ```
 
 ### 2. Initialise the database
