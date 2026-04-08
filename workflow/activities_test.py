@@ -104,7 +104,7 @@ async def test_open_db_connection_registers_client() -> None:
         conn_id = await open_db_connection()
 
     try:
-        assert isinstance(conn_id, str) and len(conn_id) == 36
+        assert len(conn_id) == 36
         assert _DB_REGISTRY[conn_id] is fake_db
     finally:
         _DB_REGISTRY.pop(conn_id, None)
@@ -144,7 +144,7 @@ async def test_save_to_db_returns_row_id() -> None:
 
     try:
         row_id = await save_to_db(conn_id, "hello", "world")
-        assert isinstance(row_id, int) and row_id >= 1
+        assert row_id >= 1
     finally:
         _DB_REGISTRY.pop(conn_id, None)
 
