@@ -24,7 +24,9 @@ class GeminiEchoServicer(pb2_grpc.GeminiEchoServerServicer):
     async def Echo(
         self,
         request: pb2.GeminiEchoRequest,
-        _context: grpc.aio.ServicerContext,
+        _context: grpc.aio.ServicerContext[
+            pb2.GeminiEchoRequest, pb2.GeminiEchoResponse
+        ],
     ) -> pb2.GeminiEchoResponse:
         workflow_id: str = f"gemini-echo-{uuid.uuid4()}"
         output: str = await self._client.execute_workflow(
