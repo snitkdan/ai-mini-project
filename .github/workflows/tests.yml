@@ -69,7 +69,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: radon cc . -a -nc --exclude experimental,proto/generated,.venv/
-      - run: radon mi . --exclude experimental,proto/generated,.venv/
       - run: xenon --max-absolute B --max-modules A --max-average A . --exclude experimental,proto/generated,.venv/
 
   proto-gen:
