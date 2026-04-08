@@ -6,13 +6,12 @@ from datetime import timedelta
 from temporalio import workflow
 from temporalio.common import RetryPolicy
 
+
 with workflow.unsafe.imports_passed_through():
-    from workflow.activities import (
-        call_gemini,
-        close_db_connection,
-        open_db_connection,
-        save_to_db,
-    )
+    from workflow.activities import call_gemini
+    from workflow.activities import close_db_connection
+    from workflow.activities import open_db_connection
+    from workflow.activities import save_to_db
 
 _RETRY_POLICY = RetryPolicy(maximum_attempts=3)
 

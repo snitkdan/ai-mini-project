@@ -3,10 +3,11 @@
 
 import sqlite3
 from pathlib import Path
-from typing import Optional
 
-from storage.schema import Transaction, TABLE_NAME
 from storage.protocol import TransactionStore
+from storage.schema import TABLE_NAME
+from storage.schema import Transaction
+
 
 # Re-export so existing `from storage.client import Transaction` imports still work.
 __all__ = ["DBClient", "Transaction", "TransactionStore"]
@@ -49,14 +50,14 @@ class DBClient:
         row_id: int = cursor.lastrowid  # type: ignore[assignment]
         return row_id
 
-    def query_by_id(self, row_id: int) -> Optional[Transaction]:
+    def query_by_id(self, row_id: int) -> Transaction | None:
         """Return a single transaction by primary key, or None if not found."""
         cursor: sqlite3.Cursor = self._conn.cursor()
         cursor.execute(
             f"SELECT * FROM {TABLE_NAME} WHERE id = ?",
             (row_id,),
         )
-        row: Optional[sqlite3.Row] = cursor.fetchone()
+        row: sqlite3.Row | None = cursor.fetchone()
         return self._row_to_transaction(row) if row is not None else None
 
     def list_all(self) -> list[Transaction]:
@@ -65,11 +66,11 @@ class DBClient:
         cursor.execute(f"SELECT * FROM {TABLE_NAME} ORDER BY id ASC")
         return [self._row_to_transaction(row) for row in cursor.fetchall()]
 
-    def latest(self) -> Optional[Transaction]:
+    def latest(self) -> Transaction | None:
         """Return the most recently inserted transaction, or None if empty."""
         cursor: sqlite3.Cursor = self._conn.cursor()
         cursor.execute(f"SELECT * FROM {TABLE_NAME} ORDER BY id DESC LIMIT 1")
-        row: Optional[sqlite3.Row] = cursor.fetchone()
+        row: sqlite3.Row | None = cursor.fetchone()
         return self._row_to_transaction(row) if row is not None else None
 
 

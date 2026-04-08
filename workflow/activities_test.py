@@ -2,20 +2,19 @@
 """Unit tests for Temporal activities."""
 
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import pytest
 from langchain_core.language_models.fake_chat_models import FakeListChatModel
-from storage.client import DBClient
-from typing import Any
 
-from workflow.activities import (
-    _DB_REGISTRY,
-    call_gemini,
-    close_db_connection,
-    open_db_connection,
-    save_to_db,
-)
+from storage.client import DBClient
+from workflow.activities import _DB_REGISTRY
+from workflow.activities import call_gemini
+from workflow.activities import close_db_connection
+from workflow.activities import open_db_connection
+from workflow.activities import save_to_db
+
 
 # ---------------------------------------------------------------------------
 # Helpers

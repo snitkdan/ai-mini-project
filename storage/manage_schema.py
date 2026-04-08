@@ -9,6 +9,7 @@ import re
 import sys
 from pathlib import Path
 
+
 STORAGE_DIR = Path(__file__).parent
 SCHEMA_PATH = STORAGE_DIR / "schema.py"
 CLIENT_PATH = STORAGE_DIR / "client.py"

@@ -3,18 +3,18 @@
 
 import os
 import uuid
-from datetime import timedelta
 
-import httpx
-from dotenv import load_dotenv
-from temporalio import activity
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser
 from braintrust import init_logger
 from braintrust.integrations.langchain import BraintrustCallbackHandler
+from dotenv import load_dotenv
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableConfig
+from langchain_google_genai import ChatGoogleGenerativeAI
+from temporalio import activity
+
 from storage.client import DBClient
+
 
 # Worker-local registry: connection_id → DBClient instance
 _DB_REGISTRY: dict[str, DBClient] = {}

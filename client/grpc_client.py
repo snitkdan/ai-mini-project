@@ -2,10 +2,14 @@
 """gRPC client — send a prompt and display the latest DB record."""
 
 import sys
+
 import grpc
+
 import proto.generated.gemini_echo_pb2 as pb2
 import proto.generated.gemini_echo_pb2_grpc as pb2_grpc
-from storage.client import DBClient, Transaction
+from storage.client import DBClient
+from storage.client import Transaction
+
 
 GRPC_TARGET: str = "localhost:50051"
 

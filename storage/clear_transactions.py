@@ -4,6 +4,7 @@
 import sqlite3
 from pathlib import Path
 
+
 DB_PATH: Path = Path(__file__).parent.parent / "gemini_echo.db"
 
 

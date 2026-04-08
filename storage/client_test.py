@@ -5,13 +5,14 @@ from pathlib import Path
 
 import pytest
 
-from storage.client import DBClient, Transaction
+from storage.client import DBClient
+from storage.client import Transaction
 from storage.protocol import TransactionStore
 from storage.schema import CREATE_TABLE_SQL
 
 
 @pytest.fixture
-def client() -> Generator[DBClient, None, None]:
+def client() -> Generator[DBClient]:
     db = DBClient(db_path=Path(":memory:"))
     db._conn.execute(CREATE_TABLE_SQL)
     db._conn.commit()

@@ -4,7 +4,9 @@
 import sqlite3
 from pathlib import Path
 
-from storage.schema import CREATE_TABLE_SQL, TABLE_NAME
+from storage.schema import CREATE_TABLE_SQL
+from storage.schema import TABLE_NAME
+
 
 DB_PATH: Path = Path(__file__).parent.parent / "gemini_echo.db"
 

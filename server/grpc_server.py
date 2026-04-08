@@ -3,7 +3,6 @@
 
 import asyncio
 import uuid
-from typing import Any
 
 import grpc
 from temporalio.client import Client
@@ -11,6 +10,7 @@ from temporalio.client import Client
 import proto.generated.gemini_echo_pb2 as pb2
 import proto.generated.gemini_echo_pb2_grpc as pb2_grpc
 from workflow.workflow import GeminiEchoWorkflow
+
 
 TEMPORAL_ADDRESS: str = "localhost:7233"
 TASK_QUEUE: str = "gemini-echo"

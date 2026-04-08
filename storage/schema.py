@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 
+
 TABLE_NAME = "transactions"
 CREATE_TABLE_SQL: str = f"""
     CREATE TABLE IF NOT EXISTS {TABLE_NAME} (

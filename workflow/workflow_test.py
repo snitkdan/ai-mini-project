@@ -2,7 +2,8 @@
 """Unit tests for the GeminiEchoWorkflow using Temporal's testing framework."""
 
 import uuid
-from collections.abc import AsyncGenerator, Sequence
+from collections.abc import AsyncGenerator
+from collections.abc import Sequence
 from typing import Any
 
 import pytest
@@ -14,13 +15,14 @@ from temporalio.worker import Worker
 
 from workflow.workflow import GeminiEchoWorkflow
 
+
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
 
 
 @pytest.fixture(scope="module")
-async def workflow_env() -> AsyncGenerator[WorkflowEnvironment, None]:
+async def workflow_env() -> AsyncGenerator[WorkflowEnvironment]:
     async with await WorkflowEnvironment.start_time_skipping() as env:
         yield env
 
