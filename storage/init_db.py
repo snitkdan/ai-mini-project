@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One-off script to initialise the db + transactions table"""
+"""One-off script to initialise the db + table"""
 
 import sqlite3
 from pathlib import Path

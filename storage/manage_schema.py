@@ -1,4 +1,4 @@
-"""Interactive CLI to add or remove a column from the transactions schema.
+"""Interactive CLI to add or remove a column from the schema.
 
 After running, drop and re-create the database:
     python -m storage.init_db
