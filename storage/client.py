@@ -26,7 +26,7 @@ class DBClient:
         return conn
 
     def _row_to_transaction(self, row: sqlite3.Row) -> Transaction:
-        return Transaction(**{k: row[k] for k in row.keys()})
+        return Transaction(**dict(row))
 
     def close(self) -> None:
         """Close the underlying database connection."""

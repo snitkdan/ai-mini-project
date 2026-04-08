@@ -66,9 +66,11 @@ async def test_call_gemini_sends_prompt_in_body() -> None:
         captured["messages"] = messages
         return original(self, messages, **kwargs)
 
-    with patch("workflow.activities.ChatGoogleGenerativeAI", return_value=_fake_llm()):
-        with patch.object(FakeListChatModel, "_generate", capturing_generate):
-            await call_gemini("My test prompt")
+    with (
+        patch("workflow.activities.ChatGoogleGenerativeAI", return_value=_fake_llm()),
+        patch.object(FakeListChatModel, "_generate", capturing_generate),
+    ):
+        await call_gemini("My test prompt")
 
     assert "My test prompt" in captured["messages"][-1].content
 
@@ -76,14 +78,16 @@ async def test_call_gemini_sends_prompt_in_body() -> None:
 @pytest.mark.asyncio
 async def test_call_gemini_raises_on_llm_error() -> None:
     """An exception from the LLM propagates out of call_gemini."""
-    with patch("workflow.activities.ChatGoogleGenerativeAI", return_value=_fake_llm()):
-        with patch.object(
+    with (
+        patch("workflow.activities.ChatGoogleGenerativeAI", return_value=_fake_llm()),
+        patch.object(
             FakeListChatModel,
             "_generate",
             side_effect=RuntimeError("LLM unavailable"),
-        ):
-            with pytest.raises(RuntimeError, match="LLM unavailable"):
-                await call_gemini("Trigger error")
+        ),
+        pytest.raises(RuntimeError, match="LLM unavailable"),
+    ):
+        await call_gemini("Trigger error")
 
 
 # ---------------------------------------------------------------------------
@@ -96,8 +100,8 @@ async def test_open_db_connection_registers_client() -> None:
     """open_db_connection returns a UUID and adds an entry to the registry."""
     fake_db = _make_db_client()
 
-    with patch("workflow.activities.DBClient") as MockDBClient:
-        MockDBClient.return_value = fake_db
+    with patch("workflow.activities.DBClient") as mock_client:
+        mock_client.return_value = fake_db
         conn_id = await open_db_connection()
 
     try:

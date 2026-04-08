@@ -53,8 +53,7 @@ async def call_gemini(prompt: str) -> str:
     chain = chat_prompt | llm | parser
 
     config = RunnableConfig(callbacks=[BraintrustCallbackHandler()])
-    response = chain.invoke({"prompt": prompt}, config=config)
-    return response
+    return chain.invoke({"prompt": prompt}, config=config)
 
 
 @activity.defn
@@ -62,5 +61,6 @@ async def save_to_db(conn_id: str, prompt: str, response: str) -> int:
     """Persist prompt + response using an existing connection, return new row id."""
     db = _DB_REGISTRY.get(conn_id)
     if db is None:
-        raise RuntimeError(f"No DB connection found for id: {conn_id}")
+        msg = f"No DB connection found for id: {conn_id}"
+        raise RuntimeError(msg)
     return db.insert(prompt=prompt, response=response)

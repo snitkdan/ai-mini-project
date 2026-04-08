@@ -22,7 +22,7 @@ class GeminiEchoServicer(pb2_grpc.GeminiEchoServerServicer):
     def __init__(self, temporal_client: Client) -> None:
         self._client: Client = temporal_client
 
-    async def Echo(
+    async def Echo(  # noqa: N802
         self,
         request: pb2.GeminiEchoRequest,
         _context: grpc.aio.ServicerContext[

@@ -185,7 +185,8 @@ async def test_workflow_does_not_call_save_on_gemini_failure(
     @activity.defn(name="call_gemini")
     async def fake_call_gemini(prompt: str) -> str:
         _ = prompt
-        raise Exception("Gemini is down")
+        msg = "Gemini is down"
+        raise RuntimeError(msg)
 
     @activity.defn(name="save_to_db")
     async def fake_save_to_db(conn_id: str, prompt: str, response: str) -> int:
@@ -266,7 +267,8 @@ async def test_workflow_always_closes_connection_on_gemini_failure(
     @activity.defn(name="call_gemini")
     async def fake_call_gemini(prompt: str) -> str:
         _ = prompt
-        raise Exception("Gemini is down")
+        msg = "Gemini is down"
+        raise RuntimeError(msg)
 
     @activity.defn(name="save_to_db")
     async def fake_save_to_db(conn_id: str, prompt: str, response: str) -> int:

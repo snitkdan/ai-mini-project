@@ -74,7 +74,8 @@ def get_sql_columns(schema_source: str) -> list[str]:
         re.DOTALL,
     )
     if not m:
-        raise ValueError("CREATE_TABLE_SQL not found in schema.py")
+        msg = "CREATE_TABLE_SQL not found in schema.py"
+        raise ValueError(msg)
     cols = []
     for line in m.group(1).splitlines():
         stripped = line.strip().rstrip(",")
@@ -89,7 +90,9 @@ def get_sql_columns(schema_source: str) -> list[str]:
 # ── schema.py mutations ───────────────────────────────────────────────────────
 
 
-def schema_add_column(source: str, col_name: str, sql_type: str, required: bool) -> str:
+def schema_add_column(
+    source: str, col_name: str, sql_type: str, *, required: bool
+) -> str:
     constraint = "NOT NULL" if required else "NULL"
     new_line = f"        {col_name:<9} {sql_type:<7} {constraint}"
 
@@ -99,7 +102,8 @@ def schema_add_column(source: str, col_name: str, sql_type: str, required: bool)
         re.DOTALL,
     )
     if not m:
-        raise ValueError("CREATE_TABLE_SQL not found")
+        msg = "CREATE_TABLE_SQL not found"
+        raise ValueError(msg)
 
     lines = m.group(2).rstrip().splitlines()
     for i in range(len(lines) - 1, -1, -1):
@@ -119,12 +123,13 @@ def schema_remove_column(source: str, col_name: str) -> str:
         re.DOTALL,
     )
     if not m:
-        raise ValueError("CREATE_TABLE_SQL not found")
+        msg = "CREATE_TABLE_SQL not found"
+        raise ValueError(msg)
 
     lines = [
-        l
-        for l in m.group(2).splitlines(keepends=True)
-        if not re.match(rf"^\s+{col_name}\s+", l)
+        line
+        for line in m.group(2).splitlines(keepends=True)
+        if not re.match(rf"^\s+{col_name}\s+", line)
     ]
     # Strip trailing comma from new last column line
     result = "".join(lines).rstrip().splitlines()
@@ -137,7 +142,7 @@ def schema_remove_column(source: str, col_name: str) -> str:
 
 
 def dataclass_add_field(
-    source: str, col_name: str, py_type: str, required: bool
+    source: str, col_name: str, py_type: str, *, required: bool
 ) -> str:
     new_field = (
         f"    {col_name}: {py_type}"
@@ -146,20 +151,23 @@ def dataclass_add_field(
     )
     m = re.search(r"(class Transaction:.*?)(\n\n|\Z)", source, re.DOTALL)
     if not m:
-        raise ValueError("Transaction dataclass not found")
+        msg = "Transaction dataclass not found"
+        raise ValueError(msg)
     new_class = m.group(1).rstrip() + "\n" + new_field
     return source[: m.start()] + new_class + source[m.start() + len(m.group(1)) :]
 
 
 def dataclass_remove_field(source: str, col_name: str) -> str:
     lines = source.splitlines(keepends=True)
-    return "".join(l for l in lines if not re.match(rf"^\s+{col_name}\s*:", l))
+    return "".join(line for line in lines if not re.match(rf"^\s+{col_name}\s*:", line))
 
 
 # ── client.py mutations ───────────────────────────────────────────────────────
 
 
-def insert_add_param(source: str, col_name: str, py_type: str, required: bool) -> str:
+def insert_add_param(
+    source: str, col_name: str, py_type: str, *, required: bool
+) -> str:
     new_param = (
         f", {col_name}: {py_type}"
         if required
@@ -185,11 +193,12 @@ def insert_remove_param(source: str, col_name: str) -> str:
 
 def _find_insert_def(lines: list[str]) -> int:
     idx = next(
-        (i for i, l in enumerate(lines) if re.match(r"\s+def insert\(", l)),
+        (i for i, line in enumerate(lines) if re.match(r"\s+def insert\(", line)),
         None,
     )
     if idx is None:
-        raise ValueError("insert method not found in client.py")
+        msg = "insert method not found in client.py"
+        raise ValueError(msg)
     return idx
 
 
@@ -220,7 +229,9 @@ def insert_add_todo(source: str) -> str:
     body_start = _find_body_start(lines, def_idx)
     insert_at = _skip_docstring(lines, body_start)
 
-    if any("TODO: implement this" in l for l in lines[body_start : body_start + 6]):
+    if any(
+        "TODO: implement this" in line for line in lines[body_start : body_start + 6]
+    ):
         return source
 
     lines.insert(insert_at, '        raise RuntimeError("TODO: implement this")\n')
@@ -256,13 +267,19 @@ def main() -> None:
             "NOT NULL" if required else "NULL",
         )
 
-        schema_source = schema_add_column(schema_source, col_name, sql_type, required)
-        schema_source = dataclass_add_field(schema_source, col_name, py_type, required)
+        schema_source = schema_add_column(
+            schema_source, col_name, sql_type, required=required
+        )
+        schema_source = dataclass_add_field(
+            schema_source, col_name, py_type, required=required
+        )
         if not required:
             schema_source = ensure_optional_import(schema_source)
             client_source = ensure_optional_import(client_source)
 
-        client_source = insert_add_param(client_source, col_name, py_type, required)
+        client_source = insert_add_param(
+            client_source, col_name, py_type, required=required
+        )
         client_source = insert_add_todo(client_source)
 
     else:
