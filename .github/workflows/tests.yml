@@ -30,6 +30,16 @@ jobs:
       - uses: actions/checkout@v4
       - run: mypy .
 
+  lint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    container: *ci-container
+    steps:
+      - uses: actions/checkout@v4
+      - run: ruff check .
+
   format:
     runs-on: ubuntu-latest
     permissions:
@@ -38,7 +48,29 @@ jobs:
     container: *ci-container
     steps:
       - uses: actions/checkout@v4
-      - run: black --check .
+      - run: ruff format --check .
+
+  dead-code:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    container: *ci-container
+    steps:
+      - uses: actions/checkout@v4
+      - run: vulture client server storage workflow proto tests . --exclude experimental/,proto/generated/ --min-confidence 80
+
+  complexity:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    container: *ci-container
+    steps:
+      - uses: actions/checkout@v4
+      - run: radon cc client server storage workflow proto -a -nc --exclude experimental,proto/generated
+      - run: radon mi client server storage workflow proto --exclude experimental,proto/generated
+      - run: xenon --max-absolute B --max-modules A --max-average A client server storage workflow proto --exclude experimental,proto/generated
 
   proto-gen:
     runs-on: ubuntu-latest

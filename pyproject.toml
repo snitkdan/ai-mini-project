@@ -1,17 +1,117 @@
-[tool.black]
-extend-exclude = '''
-/(
-    proto/generated/
-)
-'''
+[tool.ruff]
+target-version = "py313"
+line-length = 88
+extend-exclude = [
+    "experimental",
+    "proto/generated",
+]
+
+[tool.ruff.lint]
+extend-select = [
+    "A",      # builtin shadowing
+    "ARG",    # unused arguments
+    "ASYNC",  # async footguns
+    "B",      # bugbear
+    "BLE",    # blind except
+    "C4",     # comprehensions
+    "C90",    # mccabe complexity
+    "DTZ",    # naive datetimes
+    "E",      # pycodestyle errors
+    "EM",     # exception messages
+    "FBT",    # boolean trap
+    "FLY",    # f-string modernization
+    "FURB",   # refurb
+    "G",      # logging format
+    "I",      # import sorting
+    "ICN",    # import conventions
+    "ISC",    # implicit string concat
+    "LOG",    # logging issues
+    "N",      # naming
+    "PERF",   # performance
+    "PGH",    # better noqa / type: ignore hygiene
+    "PIE",    # misc anti-patterns
+    "PL",     # pylint subset
+    "PTH",    # pathlib
+    "PT",     # pytest style/issues
+    "RET",    # return simplification
+    "RSE",    # raise statements
+    "RUF",    # Ruff-specific rules
+    "S",      # security
+    "SIM",    # simplifications
+    "SLOT",   # __slots__
+    "T10",    # debugger calls
+    "T20",    # print statements
+    "TC",     # TYPE_CHECKING imports
+    "TID",    # tidy imports
+    "TRY",    # exception handling
+    "UP",     # pyupgrade
+    "W",      # pycodestyle warnings
+    "YTT",    # sys.version checks
+]
+ignore = [
+    "ANN",      # let mypy own typing enforcement
+    "D",        # no docstring linting
+    "COM",      # formatter handles commas
+    "ERA",      # commented-out code false positives
+    "PLR0913",  # too many args
+    "PLR2004",  # magic values
+    "S101",     # allow assert, especially in tests
+]
+fixable = ["ALL"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.lint.isort]
+force-single-line = true
+lines-after-imports = 2
+
+[tool.ruff.lint.per-file-ignores]
+"proto/**/*.py" = ["ALL"]
+"**/tests/**/*.py" = [
+    "PLR2004",
+    "S101",
+    "T20",
+]
+"**/test_*.py" = [
+    "PLR2004",
+    "S101",
+    "T20",
+]
+
+[tool.ruff.format]
+docstring-code-format = true
 
 [tool.mypy]
-exclude = "experimental/"
+exclude = '(^experimental/)|(^proto/generated/)'
 strict = true
 warn_unreachable = true
 warn_unused_configs = true
 extra_checks = true
+show_error_codes = true
+pretty = true
+enable_error_code = [
+    "ignore-without-code",
+    "redundant-expr",
+    "truthy-bool",
+]
+namespace_packages = true
+exclude_gitignore = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "module"
+
+[tool.vulture]
+exclude = [
+    "experimental/",
+    "proto/generated/",
+]
+min_confidence = 80
+
+[tool.radon]
+exclude = "experimental,proto/generated"
+cc_min = "B"
