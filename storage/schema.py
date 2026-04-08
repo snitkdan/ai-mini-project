@@ -2,8 +2,9 @@
 
 from dataclasses import dataclass
 
-CREATE_TABLE_SQL: str = """
-    CREATE TABLE IF NOT EXISTS transactions (
+TABLE_NAME = "transactions"
+CREATE_TABLE_SQL: str = f"""
+    CREATE TABLE IF NOT EXISTS {TABLE_NAME} (
         id        INTEGER PRIMARY KEY AUTOINCREMENT,
         prompt    TEXT    NOT NULL,
         timestamp TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),

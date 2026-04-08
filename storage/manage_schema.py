@@ -1,0 +1,282 @@
+#!/usr/bin/env python3
+"""Interactive CLI to add or remove a column from the transactions schema.
+
+After running, drop and re-create the database:
+    python -m storage.init_db
+"""
+
+import re
+import sys
+from pathlib import Path
+
+STORAGE_DIR = Path(__file__).parent
+SCHEMA_PATH = STORAGE_DIR / "schema.py"
+CLIENT_PATH = STORAGE_DIR / "client.py"
+
+SQL_TYPES = ["TEXT", "INTEGER", "REAL", "BLOB", "BOOLEAN"]
+SQL_TO_PY: dict[str, str] = {
+    "TEXT": "str",
+    "INTEGER": "int",
+    "REAL": "float",
+    "BLOB": "bytes",
+    "BOOLEAN": "bool",
+}
+
+
+# ── Prompt helpers ────────────────────────────────────────────────────────────
+
+
+def prompt_menu(heading: str, options: list[str]) -> str:
+    print(f"\n{heading}")
+    for i, opt in enumerate(options, 1):
+        print(f"  {i}. {opt}")
+    while True:
+        raw = input("Choice: ").strip()
+        if raw.isdigit() and 1 <= int(raw) <= len(options):
+            return options[int(raw) - 1]
+        print(f"Enter a number from 1 to {len(options)}.")
+
+
+def prompt_yes_no(question: str) -> bool:
+    while True:
+        raw = input(f"{question} [y/n]: ").strip().lower()
+        if raw in ("y", "yes"):
+            return True
+        if raw in ("n", "no"):
+            return False
+        print("Enter y or n.")
+
+
+# ── Source helpers ────────────────────────────────────────────────────────────
+
+
+def ensure_optional_import(source: str) -> str:
+    """Add 'from typing import Optional' after the last import if absent."""
+    if "Optional" in source:
+        return source
+    lines = source.splitlines(keepends=True)
+    last_import_idx = -1
+    for i, line in enumerate(lines):
+        if re.match(r"^(?:from|import)\s+", line):
+            last_import_idx = i
+    if last_import_idx >= 0:
+        lines.insert(last_import_idx + 1, "from typing import Optional\n")
+    return "".join(lines)
+
+
+def get_sql_columns(schema_source: str) -> list[str]:
+    m = re.search(
+        r'CREATE_TABLE_SQL\s*:\s*str\s*=\s*[furbFURB]*"""(.*?)"""',
+        schema_source,
+        re.DOTALL,
+    )
+    if not m:
+        raise ValueError("CREATE_TABLE_SQL not found in schema.py")
+    cols = []
+    for line in m.group(1).splitlines():
+        stripped = line.strip().rstrip(",")
+        if not stripped or stripped.upper().startswith("CREATE") or stripped == ")":
+            continue
+        col_m = re.match(r"^(\w+)\s+", stripped)
+        if col_m:
+            cols.append(col_m.group(1))
+    return cols
+
+
+# ── schema.py mutations ───────────────────────────────────────────────────────
+
+
+def schema_add_column(source: str, col_name: str, sql_type: str, required: bool) -> str:
+    constraint = "NOT NULL" if required else "NULL"
+    new_line = f"        {col_name:<9} {sql_type:<7} {constraint}"
+
+    m = re.search(
+        r'(CREATE_TABLE_SQL\s*:\s*str\s*=\s*[furbFURB]*""")(.*?)(""")',
+        source,
+        re.DOTALL,
+    )
+    if not m:
+        raise ValueError("CREATE_TABLE_SQL not found")
+
+    lines = m.group(2).rstrip().splitlines()
+    for i in range(len(lines) - 1, -1, -1):
+        if lines[i].strip() and lines[i].strip() != ")":
+            lines[i] = lines[i].rstrip().rstrip(",") + ","
+            lines.insert(i + 1, new_line)
+            break
+
+    new_body = "\n".join(lines) + "\n"
+    return source[: m.start()] + m.group(1) + new_body + m.group(3) + source[m.end() :]
+
+
+def schema_remove_column(source: str, col_name: str) -> str:
+    m = re.search(
+        r'(CREATE_TABLE_SQL\s*:\s*str\s*=\s*[furbFURB]*""")(.*?)(""")',
+        source,
+        re.DOTALL,
+    )
+    if not m:
+        raise ValueError("CREATE_TABLE_SQL not found")
+
+    lines = [
+        l
+        for l in m.group(2).splitlines(keepends=True)
+        if not re.match(rf"^\s+{col_name}\s+", l)
+    ]
+    # Strip trailing comma from new last column line
+    result = "".join(lines).rstrip().splitlines()
+    for i in range(len(result) - 1, -1, -1):
+        if result[i].strip() and result[i].strip() != ")":
+            result[i] = result[i].rstrip().rstrip(",")
+            break
+    new_body = "\n".join(result) + "\n"
+    return source[: m.start()] + m.group(1) + new_body + m.group(3) + source[m.end() :]
+
+
+def dataclass_add_field(
+    source: str, col_name: str, py_type: str, required: bool
+) -> str:
+    new_field = (
+        f"    {col_name}: {py_type}"
+        if required
+        else f"    {col_name}: Optional[{py_type}] = None"
+    )
+    m = re.search(r"(class Transaction:.*?)(\n\n|\Z)", source, re.DOTALL)
+    if not m:
+        raise ValueError("Transaction dataclass not found")
+    new_class = m.group(1).rstrip() + "\n" + new_field
+    return source[: m.start()] + new_class + source[m.start() + len(m.group(1)) :]
+
+
+def dataclass_remove_field(source: str, col_name: str) -> str:
+    lines = source.splitlines(keepends=True)
+    return "".join(l for l in lines if not re.match(rf"^\s+{col_name}\s*:", l))
+
+
+# ── client.py mutations ───────────────────────────────────────────────────────
+
+
+def insert_add_param(source: str, col_name: str, py_type: str, required: bool) -> str:
+    new_param = (
+        f", {col_name}: {py_type}"
+        if required
+        else f", {col_name}: Optional[{py_type}] = None"
+    )
+    # Replace the closing `) -> int:` of the insert signature
+    return re.sub(
+        r"(def insert\(self(?:[^)]*?))\)\s*->\s*int\s*:",
+        rf"\1{new_param}) -> int:",
+        source,
+        count=1,
+        flags=re.DOTALL,
+    )
+
+
+def insert_remove_param(source: str, col_name: str) -> str:
+    return re.sub(
+        rf",\s*{col_name}\s*:[^,)]*",
+        "",
+        source,
+        count=1,
+    )
+
+
+def insert_add_todo(source: str) -> str:
+    """Prepend raise RuntimeError('TODO: implement this') to insert body."""
+    lines = source.splitlines(keepends=True)
+
+    def_idx = next(
+        (i for i, l in enumerate(lines) if re.match(r"\s+def insert\(", l)), None
+    )
+    if def_idx is None:
+        raise ValueError("insert method not found in client.py")
+
+    # Find first line of the body (after the signature's closing `:`)
+    body_start = def_idx
+    for i in range(def_idx, len(lines)):
+        if lines[i].rstrip().endswith(":"):
+            body_start = i + 1
+            break
+
+    # Skip over a docstring if present
+    insert_at = body_start
+    first = lines[body_start].strip()
+    if first.startswith('"""'):
+        if first.count('"""') >= 2 and len(first) > 6:
+            insert_at = body_start + 1  # single-line docstring
+        else:
+            for i in range(body_start + 1, len(lines)):
+                if '"""' in lines[i]:
+                    insert_at = i + 1
+                    break
+
+    # Avoid duplicating the TODO
+    if any("TODO: implement this" in l for l in lines[body_start : body_start + 6]):
+        return source
+
+    lines.insert(insert_at, '        raise RuntimeError("TODO: implement this")\n')
+    return "".join(lines)
+
+
+# ── Main ──────────────────────────────────────────────────────────────────────
+
+
+def main() -> None:
+    action = prompt_menu(
+        "What would you like to do?", ["Add a column", "Remove a column"]
+    )
+
+    schema_source = SCHEMA_PATH.read_text()
+    client_source = CLIENT_PATH.read_text()
+
+    if action == "Add a column":
+        col_name = input("\nColumn name: ").strip()
+        if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", col_name):
+            print("Invalid column name.")
+            sys.exit(1)
+
+        sql_type = prompt_menu("SQL type:", SQL_TYPES)
+        py_type = SQL_TO_PY[sql_type]
+        required = prompt_yes_no("Required (NOT NULL)?")
+
+        print(
+            f"\nAdding '{col_name}' "
+            f"({sql_type} / {py_type}, {'NOT NULL' if required else 'NULL'})..."
+        )
+
+        schema_source = schema_add_column(schema_source, col_name, sql_type, required)
+        schema_source = dataclass_add_field(schema_source, col_name, py_type, required)
+        if not required:
+            schema_source = ensure_optional_import(schema_source)
+            client_source = ensure_optional_import(client_source)
+
+        client_source = insert_add_param(client_source, col_name, py_type, required)
+        client_source = insert_add_todo(client_source)
+
+    else:
+        columns = [col for col in get_sql_columns(schema_source) if col != "id"]
+        if not columns:
+            print("No removable columns found.")
+            sys.exit(1)
+
+        col_name = prompt_menu("Which column to remove?", columns)
+        print(f"\nRemoving '{col_name}'...")
+
+        schema_source = schema_remove_column(schema_source, col_name)
+        schema_source = dataclass_remove_field(schema_source, col_name)
+        client_source = insert_remove_param(client_source, col_name)
+        client_source = insert_add_todo(client_source)
+
+    SCHEMA_PATH.write_text(schema_source)
+    CLIENT_PATH.write_text(client_source)
+
+    print("\nDone! Updated:")
+    print(f"  {SCHEMA_PATH}")
+    print(f"  {CLIENT_PATH}")
+    print("\nNext steps:")
+    print("  1. Implement the new insert logic in client.py (find the TODO).")
+    print("  2. Drop and re-create the database: python -m storage.init_db")
+
+
+if __name__ == "__main__":
+    main()
