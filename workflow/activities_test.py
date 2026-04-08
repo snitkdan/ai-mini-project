@@ -23,8 +23,6 @@ from workflow.activities import save_to_db
 
 def _make_db_client() -> DBClient:
     """Return a DBClient backed by an in-memory SQLite instance."""
-    from storage.client import DBClient
-
     db = DBClient(db_path=Path(":memory:"))
     db._conn.execute("""
         CREATE TABLE IF NOT EXISTS transactions (

@@ -38,7 +38,7 @@ jobs:
     container: *ci-container
     steps:
       - uses: actions/checkout@v4
-      - run: ruff check .
+      - run: ruff check . --output-format=grouped
 
   format:
     runs-on: ubuntu-latest
@@ -48,7 +48,7 @@ jobs:
     container: *ci-container
     steps:
       - uses: actions/checkout@v4
-      - run: ruff format --check .
+      - run: ruff format --check . --output-format=grouped
 
   dead-code:
     runs-on: ubuntu-latest

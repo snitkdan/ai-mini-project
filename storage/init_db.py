@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""One-off script to initialise the SQLite database and create the transactions table."""
+"""One-off script to initialise the db + transactions table"""
 
 import sqlite3
 from pathlib import Path
 
+from logger import logger
 from storage.schema import CREATE_TABLE_SQL
 from storage.schema import TABLE_NAME
 
@@ -18,7 +19,7 @@ def init_db() -> None:
     cursor.execute(CREATE_TABLE_SQL)
     conn.commit()
     conn.close()
-    print(f"Database initialised at: {DB_PATH}")
+    logger.info(f"Database initialised at: {DB_PATH}")
 
 
 if __name__ == "__main__":

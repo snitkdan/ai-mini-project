@@ -4,6 +4,8 @@
 import sqlite3
 from pathlib import Path
 
+from logger import logger
+
 
 DB_PATH: Path = Path(__file__).parent.parent / "gemini_echo.db"
 
@@ -15,7 +17,7 @@ def clear_transactions() -> None:
     conn.commit()
     deleted: int = cursor.rowcount
     conn.close()
-    print(f"Cleared {deleted} row(s) from transactions.")
+    logger.info(f"Cleared {deleted} row(s) from transactions.")
 
 
 if __name__ == "__main__":

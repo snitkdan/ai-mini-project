@@ -9,6 +9,8 @@ import re
 import sys
 from pathlib import Path
 
+from logger import logger
+
 
 STORAGE_DIR = Path(__file__).parent
 SCHEMA_PATH = STORAGE_DIR / "schema.py"
@@ -28,14 +30,14 @@ SQL_TO_PY: dict[str, str] = {
 
 
 def prompt_menu(heading: str, options: list[str]) -> str:
-    print(f"\n{heading}")
+    logger.info("\n%s", heading)
     for i, opt in enumerate(options, 1):
-        print(f"  {i}. {opt}")
+        logger.info("  %d. %s", i, opt)
     while True:
         raw = input("Choice: ").strip()
         if raw.isdigit() and 1 <= int(raw) <= len(options):
             return options[int(raw) - 1]
-        print(f"Enter a number from 1 to {len(options)}.")
+        logger.warning("Enter a number from 1 to %d.", len(options))
 
 
 def prompt_yes_no(question: str) -> bool:
@@ -45,7 +47,7 @@ def prompt_yes_no(question: str) -> bool:
             return True
         if raw in ("n", "no"):
             return False
-        print("Enter y or n.")
+        logger.warning("Enter y or n.")
 
 
 # ── Source helpers ────────────────────────────────────────────────────────────
@@ -239,16 +241,19 @@ def main() -> None:
     if action == "Add a column":
         col_name = input("\nColumn name: ").strip()
         if not re.match(r"^[a-zA-Z_][a-zA-Z0-9_]*$", col_name):
-            print("Invalid column name.")
+            logger.error("Invalid column name.")
             sys.exit(1)
 
         sql_type = prompt_menu("SQL type:", SQL_TYPES)
         py_type = SQL_TO_PY[sql_type]
         required = prompt_yes_no("Required (NOT NULL)?")
 
-        print(
-            f"\nAdding '{col_name}' "
-            f"({sql_type} / {py_type}, {'NOT NULL' if required else 'NULL'})..."
+        logger.info(
+            "\nAdding '%s' (%s / %s, %s)...",
+            col_name,
+            sql_type,
+            py_type,
+            "NOT NULL" if required else "NULL",
         )
 
         schema_source = schema_add_column(schema_source, col_name, sql_type, required)
@@ -263,11 +268,11 @@ def main() -> None:
     else:
         columns = [col for col in get_sql_columns(schema_source) if col != "id"]
         if not columns:
-            print("No removable columns found.")
+            logger.error("No removable columns found.")
             sys.exit(1)
 
         col_name = prompt_menu("Which column to remove?", columns)
-        print(f"\nRemoving '{col_name}'...")
+        logger.info("\nRemoving '%s'...", col_name)
 
         schema_source = schema_remove_column(schema_source, col_name)
         schema_source = dataclass_remove_field(schema_source, col_name)
@@ -277,12 +282,12 @@ def main() -> None:
     SCHEMA_PATH.write_text(schema_source)
     CLIENT_PATH.write_text(client_source)
 
-    print("\nDone! Updated:")
-    print(f"  {SCHEMA_PATH}")
-    print(f"  {CLIENT_PATH}")
-    print("\nNext steps:")
-    print("  1. Implement the new insert logic in client.py (find the TODO).")
-    print("  2. Drop and re-create the database: python -m storage.init_db")
+    logger.info("\nDone! Updated:")
+    logger.info("  %s", SCHEMA_PATH)
+    logger.info("  %s", CLIENT_PATH)
+    logger.info("\nNext steps:")
+    logger.info("  1. Implement the new insert logic in client.py (find the TODO).")
+    logger.info("  2. Drop and re-create the database: python -m storage.init_db")
 
 
 if __name__ == "__main__":

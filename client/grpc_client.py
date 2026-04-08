@@ -7,6 +7,7 @@ import grpc
 
 import proto.generated.gemini_echo_pb2 as pb2
 import proto.generated.gemini_echo_pb2_grpc as pb2_grpc
+from logger import logger
 from storage.client import DBClient
 from storage.client import Transaction
 
@@ -16,7 +17,7 @@ GRPC_TARGET: str = "localhost:50051"
 
 def main() -> None:
     if len(sys.argv) != 2:
-        print('Usage: python -m client.grpc_client "<prompt>"')
+        logger.error('Usage: python -m client.grpc_client "<prompt>"')
         sys.exit(1)
 
     prompt: str = sys.argv[1]
@@ -30,14 +31,14 @@ def main() -> None:
     record: Transaction | None = db.latest()
 
     if record is not None:
-        print("=" * 60)
-        print("LATEST DATABASE RECORD")
-        print("=" * 60)
-        print(f"  ID        : {record.id}")
-        print(f"  Timestamp : {record.timestamp}")
-        print(f"  Prompt    : {record.prompt}")
-        print(f"  Response  : {record.response}")
-        print("=" * 60)
+        logger.info("=" * 60)
+        logger.info("LATEST DATABASE RECORD")
+        logger.info("=" * 60)
+        logger.info("  ID        : %s", record.id)
+        logger.info("  Timestamp : %s", record.timestamp)
+        logger.info("  Prompt    : %s", record.prompt)
+        logger.info("  Response  : %s", record.response)
+        logger.info("=" * 60)
 
     db.close()
 

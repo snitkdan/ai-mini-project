@@ -9,6 +9,7 @@ from temporalio.client import Client
 
 import proto.generated.gemini_echo_pb2 as pb2
 import proto.generated.gemini_echo_pb2_grpc as pb2_grpc
+from logger import logger
 from workflow.workflow import GeminiEchoWorkflow
 
 
@@ -35,7 +36,7 @@ class GeminiEchoServicer(pb2_grpc.GeminiEchoServerServicer):
             id=workflow_id,
             task_queue=TASK_QUEUE,
         )
-        print(f"[server] workflow {workflow_id} completed.")
+        logger.info(f"[server] workflow {workflow_id} completed.")
         return pb2.GeminiEchoResponse(output=output)
 
 
@@ -49,10 +50,10 @@ async def serve() -> None:
     server.add_insecure_port(GRPC_PORT)
 
     await server.start()
-    print(f"gRPC server listening on {GRPC_PORT}")
+    logger.info("gRPC server listening on {GRPC_PORT}")
 
     async def _shutdown() -> None:
-        print("\nShutting down gRPC server…")
+        logger.info("Shutting down gRPC server…")
         await server.stop(grace=5)
 
     loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()

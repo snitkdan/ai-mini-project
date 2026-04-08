@@ -6,6 +6,7 @@ import asyncio
 from temporalio.client import Client
 from temporalio.worker import Worker
 
+from logger import logger
 from workflow.activities import call_gemini
 from workflow.activities import close_db_connection
 from workflow.activities import open_db_connection
@@ -27,7 +28,9 @@ async def main() -> None:
         activities=[call_gemini, open_db_connection, close_db_connection, save_to_db],
     )
 
-    print(f"Worker started — task queue: {TASK_QUEUE!r}  server: {TEMPORAL_ADDRESS}")
+    logger.info(
+        f"Worker started — task queue: {TASK_QUEUE!r}  server: {TEMPORAL_ADDRESS}"
+    )
     await worker.run()
 
 
