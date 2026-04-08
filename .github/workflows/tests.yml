@@ -58,7 +58,7 @@ jobs:
     container: *ci-container
     steps:
       - uses: actions/checkout@v4
-      - run: vulture client server storage workflow proto tests . --exclude experimental/,proto/generated/ --min-confidence 80
+      - run: vulture . --exclude experimental/,proto/generated/,.venv/ --min-confidence 80
 
   complexity:
     runs-on: ubuntu-latest
