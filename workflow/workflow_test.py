@@ -3,7 +3,7 @@
 
 import uuid
 from collections.abc import AsyncGenerator, Sequence
-from typing import Any, cast
+from typing import Any
 
 import pytest
 from temporalio import activity
@@ -156,8 +156,9 @@ async def test_workflow_propagates_gemini_failure(
     with pytest.raises(WorkflowFailureError) as exc_info:
         await _run_workflow(workflow_env, "any prompt", mocks)
 
-    workflow_err = cast(WorkflowFailureError, exc_info.value)
-    activity_err = cast(ActivityError, workflow_err.cause)
+    workflow_err = exc_info.value
+    activity_err = workflow_err.cause
+    assert isinstance(activity_err, ActivityError)
     cause = activity_err.cause
 
     assert cause is not None

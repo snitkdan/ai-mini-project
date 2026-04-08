@@ -7,6 +7,10 @@ extend-exclude = '''
 
 [tool.mypy]
 exclude = "experimental/"
+strict = true
+warn_unreachable = true
+warn_unused_configs = true
+extra_checks = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

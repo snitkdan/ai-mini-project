@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""SQLite client for the transactions table."""
+"""SQLite client for the {TABLE_NAME} table."""
 
 import sqlite3
 from pathlib import Path
 from typing import Optional
 
-from storage.schema import CREATE_TABLE_SQL, Transaction
+from storage.schema import Transaction, TABLE_NAME
 from storage.protocol import TransactionStore
 
 # Re-export so existing `from storage.client import Transaction` imports still work.
@@ -35,8 +35,8 @@ class DBClient:
         """Insert a new transaction row and return the new row id."""
         cursor: sqlite3.Cursor = self._conn.cursor()
         cursor.execute(
-            """
-            INSERT INTO transactions (prompt, timestamp, response)
+            f"""
+            INSERT INTO {TABLE_NAME} (prompt, timestamp, response)
             VALUES (
                 ?,
                 strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
@@ -53,21 +53,21 @@ class DBClient:
         """Return a single transaction by primary key, or None if not found."""
         cursor: sqlite3.Cursor = self._conn.cursor()
         cursor.execute(
-            "SELECT * FROM transactions WHERE id = ?",
+            f"SELECT * FROM {TABLE_NAME} WHERE id = ?",
             (row_id,),
         )
         row: Optional[sqlite3.Row] = cursor.fetchone()
         return self._row_to_transaction(row) if row is not None else None
 
     def list_all(self) -> list[Transaction]:
-        """Return all transactions ordered by id ascending."""
+        """Return all {TABLE_NAME} ordered by id ascending."""
         cursor: sqlite3.Cursor = self._conn.cursor()
-        cursor.execute("SELECT * FROM transactions ORDER BY id ASC")
+        cursor.execute(f"SELECT * FROM {TABLE_NAME} ORDER BY id ASC")
         return [self._row_to_transaction(row) for row in cursor.fetchall()]
 
     def latest(self) -> Optional[Transaction]:
         """Return the most recently inserted transaction, or None if empty."""
         cursor: sqlite3.Cursor = self._conn.cursor()
-        cursor.execute("SELECT * FROM transactions ORDER BY id DESC LIMIT 1")
+        cursor.execute(f"SELECT * FROM {TABLE_NAME} ORDER BY id DESC LIMIT 1")
         row: Optional[sqlite3.Row] = cursor.fetchone()
         return self._row_to_transaction(row) if row is not None else None

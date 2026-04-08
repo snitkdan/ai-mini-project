@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Unit tests for Temporal activities."""
 
-import pytest
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 from langchain_core.language_models.fake_chat_models import FakeListChatModel
+from storage.client import DBClient
+from typing import Any
 
 from workflow.activities import (
     _DB_REGISTRY,
@@ -20,7 +22,7 @@ from workflow.activities import (
 # ---------------------------------------------------------------------------
 
 
-def _make_db_client():
+def _make_db_client() -> DBClient:
     """Return a DBClient backed by an in-memory SQLite instance."""
     from storage.client import DBClient
 
@@ -47,7 +49,7 @@ def _fake_llm(response: str = "Hello from Gemini!") -> FakeListChatModel:
 
 
 @pytest.mark.asyncio
-async def test_call_gemini_returns_text():
+async def test_call_gemini_returns_text() -> None:
     """Happy path: correct text is returned from the chain."""
     with patch("workflow.activities.ChatGoogleGenerativeAI", return_value=_fake_llm()):
         result = await call_gemini("Say hello")
@@ -56,12 +58,14 @@ async def test_call_gemini_returns_text():
 
 
 @pytest.mark.asyncio
-async def test_call_gemini_sends_prompt_in_body():
+async def test_call_gemini_sends_prompt_in_body() -> None:
     """The prompt is forwarded correctly through the chain."""
-    captured = {}
+    captured: dict[str, Any] = {}
     original = FakeListChatModel._generate
 
-    def capturing_generate(self, messages, **kwargs):
+    def capturing_generate(
+        self: FakeListChatModel, messages: Any, **kwargs: Any
+    ) -> Any:
         captured["messages"] = messages
         return original(self, messages, **kwargs)
 
@@ -73,7 +77,7 @@ async def test_call_gemini_sends_prompt_in_body():
 
 
 @pytest.mark.asyncio
-async def test_call_gemini_raises_on_llm_error():
+async def test_call_gemini_raises_on_llm_error() -> None:
     """An exception from the LLM propagates out of call_gemini."""
     with patch("workflow.activities.ChatGoogleGenerativeAI", return_value=_fake_llm()):
         with patch.object(
@@ -91,7 +95,7 @@ async def test_call_gemini_raises_on_llm_error():
 
 
 @pytest.mark.asyncio
-async def test_open_db_connection_registers_client():
+async def test_open_db_connection_registers_client() -> None:
     """open_db_connection returns a UUID and adds an entry to the registry."""
     fake_db = _make_db_client()
 
@@ -107,7 +111,7 @@ async def test_open_db_connection_registers_client():
 
 
 @pytest.mark.asyncio
-async def test_close_db_connection_deregisters_and_closes():
+async def test_close_db_connection_deregisters_and_closes() -> None:
     """close_db_connection closes the client and removes it from the registry."""
     fake_db = _make_db_client()
     conn_id = "test-conn-id"
@@ -121,7 +125,7 @@ async def test_close_db_connection_deregisters_and_closes():
 
 
 @pytest.mark.asyncio
-async def test_close_db_connection_unknown_id_is_noop():
+async def test_close_db_connection_unknown_id_is_noop() -> None:
     """Closing an unrecognised connection id does not raise."""
     await close_db_connection("nonexistent-id")
 
@@ -132,7 +136,7 @@ async def test_close_db_connection_unknown_id_is_noop():
 
 
 @pytest.mark.asyncio
-async def test_save_to_db_returns_row_id():
+async def test_save_to_db_returns_row_id() -> None:
     """save_to_db returns a positive integer row id."""
     fake_db = _make_db_client()
     conn_id = "test-conn-id"
@@ -146,7 +150,7 @@ async def test_save_to_db_returns_row_id():
 
 
 @pytest.mark.asyncio
-async def test_save_to_db_persists_data():
+async def test_save_to_db_persists_data() -> None:
     """Prompt and response are actually written to the DB."""
     fake_db = _make_db_client()
     conn_id = "test-conn-id"
@@ -155,6 +159,7 @@ async def test_save_to_db_persists_data():
     try:
         row_id = await save_to_db(conn_id, "my prompt", "my response")
         row = fake_db.query_by_id(row_id)
+        assert row is not None
         assert row.prompt == "my prompt"
         assert row.response == "my response"
     finally:
@@ -162,7 +167,7 @@ async def test_save_to_db_persists_data():
 
 
 @pytest.mark.asyncio
-async def test_save_to_db_increments_row_id():
+async def test_save_to_db_increments_row_id() -> None:
     """Each insert gets a distinct, incrementing row id."""
     fake_db = _make_db_client()
     conn_id = "test-conn-id"
@@ -177,7 +182,7 @@ async def test_save_to_db_increments_row_id():
 
 
 @pytest.mark.asyncio
-async def test_save_to_db_raises_on_missing_connection():
+async def test_save_to_db_raises_on_missing_connection() -> None:
     """save_to_db raises RuntimeError when the conn_id is not registered."""
     with pytest.raises(RuntimeError, match="No DB connection found"):
         await save_to_db("ghost-id", "prompt", "response")
