@@ -71,3 +71,7 @@ class DBClient:
         cursor.execute(f"SELECT * FROM {TABLE_NAME} ORDER BY id DESC LIMIT 1")
         row: Optional[sqlite3.Row] = cursor.fetchone()
         return self._row_to_transaction(row) if row is not None else None
+
+
+# Ensure DBClient conforms to TransactionStore
+_: TransactionStore = DBClient.__new__(DBClient)
