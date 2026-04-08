@@ -4,6 +4,7 @@ set -euo pipefail
 
 export PYTHONUNBUFFERED=1
 SMOKE_TEST=false
+LOG_DIR="logs"
 
 if [ "${1:-}" = "--smoke-test" ]; then
   SMOKE_TEST=true
@@ -38,18 +39,20 @@ wait_for_log() {
   done
 }
 
+mkdir -p "$LOG_DIR"
+
 echo "Starting Temporal dev server..."
-temporal server start-dev &> temporal_logs.log &
-wait_for_log temporal_logs.log "Temporal CLI 1.6.2 (Server 1.30.2, UI 2.45.3)" &&
+temporal server start-dev &> "$LOG_DIR/temporal_logs.log" &
+wait_for_log "$LOG_DIR/temporal_logs.log" "Temporal CLI 1.6.2 (Server 1.30.2, UI 2.45.3)" &&
   echo "Temporal started"
 
 echo "Starting worker..."
-python -m workflow.worker &> worker_logs.log &
-wait_for_log worker_logs.log "Worker started" && echo "Worker started"
+python -m workflow.worker &> "$LOG_DIR/worker_logs.log" &
+wait_for_log "$LOG_DIR/worker_logs.log" "Worker started" && echo "Worker started"
 
 echo "Starting gRPC server..."
-python -m server.grpc_server &> grpc_server_logs.log &
-wait_for_log grpc_server_logs.log "gRPC server listening on" &&
+python -m server.grpc_server &> "$LOG_DIR/grpc_server_logs.log" &
+wait_for_log "$LOG_DIR/grpc_server_logs.log" "gRPC server listening on" &&
   echo "gRPC server started"
 
 echo "All services up."
