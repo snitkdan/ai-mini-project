@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Unit tests for Temporal activities."""
 
 from pathlib import Path
@@ -95,14 +94,13 @@ async def test_call_gemini_raises_on_llm_error() -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
-async def test_open_db_connection_registers_client() -> None:
+def test_open_db_connection_registers_client() -> None:
     """open_db_connection returns a UUID and adds an entry to the registry."""
     fake_db = _make_db_client()
 
     with patch("workflow.activities.DBClient") as mock_client:
         mock_client.return_value = fake_db
-        conn_id = await open_db_connection()
+        conn_id = open_db_connection()
 
     try:
         assert len(conn_id) == 36
@@ -111,24 +109,22 @@ async def test_open_db_connection_registers_client() -> None:
         _DB_REGISTRY.pop(conn_id, None)
 
 
-@pytest.mark.asyncio
-async def test_close_db_connection_deregisters_and_closes() -> None:
+def test_close_db_connection_deregisters_and_closes() -> None:
     """close_db_connection closes the client and removes it from the registry."""
     fake_db = _make_db_client()
     conn_id = "test-conn-id"
     _DB_REGISTRY[conn_id] = fake_db
 
     with patch.object(fake_db, "close") as mock_close:
-        await close_db_connection(conn_id)
+        close_db_connection(conn_id)
 
     mock_close.assert_called_once()
     assert conn_id not in _DB_REGISTRY
 
 
-@pytest.mark.asyncio
-async def test_close_db_connection_unknown_id_is_noop() -> None:
+def test_close_db_connection_unknown_id_is_noop() -> None:
     """Closing an unrecognised connection id does not raise."""
-    await close_db_connection("nonexistent-id")
+    close_db_connection("nonexistent-id")
 
 
 # ---------------------------------------------------------------------------
@@ -136,29 +132,27 @@ async def test_close_db_connection_unknown_id_is_noop() -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.asyncio
-async def test_save_to_db_returns_row_id() -> None:
+def test_save_to_db_returns_row_id() -> None:
     """save_to_db returns a positive integer row id."""
     fake_db = _make_db_client()
     conn_id = "test-conn-id"
     _DB_REGISTRY[conn_id] = fake_db
 
     try:
-        row_id = await save_to_db(conn_id, "hello", "world")
+        row_id = save_to_db(conn_id, "hello", "world")
         assert row_id >= 1
     finally:
         _DB_REGISTRY.pop(conn_id, None)
 
 
-@pytest.mark.asyncio
-async def test_save_to_db_persists_data() -> None:
+def test_save_to_db_persists_data() -> None:
     """Prompt and response are actually written to the DB."""
     fake_db = _make_db_client()
     conn_id = "test-conn-id"
     _DB_REGISTRY[conn_id] = fake_db
 
     try:
-        row_id = await save_to_db(conn_id, "my prompt", "my response")
+        row_id = save_to_db(conn_id, "my prompt", "my response")
         row = fake_db.query_by_id(row_id)
         assert row is not None
         assert row.prompt == "my prompt"
@@ -167,23 +161,21 @@ async def test_save_to_db_persists_data() -> None:
         _DB_REGISTRY.pop(conn_id, None)
 
 
-@pytest.mark.asyncio
-async def test_save_to_db_increments_row_id() -> None:
+def test_save_to_db_increments_row_id() -> None:
     """Each insert gets a distinct, incrementing row id."""
     fake_db = _make_db_client()
     conn_id = "test-conn-id"
     _DB_REGISTRY[conn_id] = fake_db
 
     try:
-        id1 = await save_to_db(conn_id, "prompt 1", "response 1")
-        id2 = await save_to_db(conn_id, "prompt 2", "response 2")
+        id1 = save_to_db(conn_id, "prompt 1", "response 1")
+        id2 = save_to_db(conn_id, "prompt 2", "response 2")
         assert id2 > id1
     finally:
         _DB_REGISTRY.pop(conn_id, None)
 
 
-@pytest.mark.asyncio
-async def test_save_to_db_raises_on_missing_connection() -> None:
+def test_save_to_db_raises_on_missing_connection() -> None:
     """save_to_db raises RuntimeError when the conn_id is not registered."""
     with pytest.raises(RuntimeError, match="No DB connection found"):
-        await save_to_db("ghost-id", "prompt", "response")
+        save_to_db("ghost-id", "prompt", "response")

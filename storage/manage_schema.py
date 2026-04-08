@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Interactive CLI to add or remove a column from the transactions schema.
 
 After running, drop and re-create the database:
@@ -43,9 +42,9 @@ def prompt_menu(heading: str, options: list[str]) -> str:
 def prompt_yes_no(question: str) -> bool:
     while True:
         raw = input(f"{question} [y/n]: ").strip().lower()
-        if raw in ("y", "yes"):
+        if raw in {"y", "yes"}:
             return True
-        if raw in ("n", "no"):
+        if raw in {"n", "no"}:
             return False
         logger.warning("Enter y or n.")
 

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """One-off script to clear all rows from the transactions table."""
 
 import sqlite3

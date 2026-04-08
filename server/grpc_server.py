@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """gRPC server that synchronously executes the GeminiEchoWorkflow."""
 
 import asyncio
@@ -50,7 +49,7 @@ async def serve() -> None:
     server.add_insecure_port(GRPC_PORT)
 
     await server.start()
-    logger.info("gRPC server listening on {GRPC_PORT}")
+    logger.info(f"gRPC server listening on {GRPC_PORT}")
 
     async def _shutdown() -> None:
         logger.info("Shutting down gRPC server…")

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Temporal workflow: orchestrate Gemini call → DB save."""
 
 from datetime import timedelta
@@ -22,7 +21,7 @@ _DB_TIMEOUT = timedelta(seconds=30)
 @workflow.defn
 class GeminiEchoWorkflow:
     @workflow.run
-    async def run(self, prompt: str) -> str:
+    async def run(self, prompt: str) -> str:  # noqa: PLR6301
         conn_id: str | None = None
         try:
             conn_id = await workflow.execute_activity(

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """gRPC client — send a prompt and display the latest DB record."""
 
 import sys

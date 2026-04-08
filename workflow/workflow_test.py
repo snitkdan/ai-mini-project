@@ -1,6 +1,6 @@
-#!/usr/bin/env python3
 """Unit tests for the GeminiEchoWorkflow using Temporal's testing framework."""
 
+import concurrent.futures
 import uuid
 from collections.abc import AsyncGenerator
 from collections.abc import Sequence
@@ -45,6 +45,7 @@ async def _run_workflow(
         task_queue="test-queue",
         workflows=[GeminiEchoWorkflow],
         activities=mock_activities,
+        activity_executor=concurrent.futures.ThreadPoolExecutor(),
     ):
         return await env.client.execute_workflow(
             GeminiEchoWorkflow.run,
@@ -65,22 +66,22 @@ def make_mock_activities(
     """
 
     @activity.defn(name="open_db_connection")
-    async def fake_open_db_connection() -> str:
+    def fake_open_db_connection() -> str:
         return _FAKE_CONN_ID
 
     @activity.defn(name="close_db_connection")
-    async def fake_close_db_connection(conn_id: str) -> None:
+    def fake_close_db_connection(conn_id: str) -> None:
         _ = conn_id
 
     @activity.defn(name="call_gemini")
-    async def fake_call_gemini(prompt: str) -> str:
+    def fake_call_gemini(prompt: str) -> str:
         _ = prompt
         if gemini_raises is not None:
             raise gemini_raises
         return gemini_return
 
     @activity.defn(name="save_to_db")
-    async def fake_save_to_db(conn_id: str, prompt: str, response: str) -> int:
+    def fake_save_to_db(conn_id: str, prompt: str, response: str) -> int:
         _ = (conn_id, prompt, response)
         return save_return
 
@@ -117,20 +118,20 @@ async def test_workflow_calls_save_with_conn_id_prompt_and_response(
     received: list[tuple[str, str, str]] = []
 
     @activity.defn(name="open_db_connection")
-    async def fake_open_db_connection() -> str:
+    def fake_open_db_connection() -> str:
         return _FAKE_CONN_ID
 
     @activity.defn(name="close_db_connection")
-    async def fake_close_db_connection(conn_id: str) -> None:
+    def fake_close_db_connection(conn_id: str) -> None:
         _ = conn_id
 
     @activity.defn(name="call_gemini")
-    async def fake_call_gemini(prompt: str) -> str:
+    def fake_call_gemini(prompt: str) -> str:
         _ = prompt
         return "gemini says hi"
 
     @activity.defn(name="save_to_db")
-    async def fake_save_to_db(conn_id: str, prompt: str, response: str) -> int:
+    def fake_save_to_db(conn_id: str, prompt: str, response: str) -> int:
         received.append((conn_id, prompt, response))
         return 1
 
@@ -175,21 +176,21 @@ async def test_workflow_does_not_call_save_on_gemini_failure(
     save_called = False
 
     @activity.defn(name="open_db_connection")
-    async def fake_open_db_connection() -> str:
+    def fake_open_db_connection() -> str:
         return _FAKE_CONN_ID
 
     @activity.defn(name="close_db_connection")
-    async def fake_close_db_connection(conn_id: str) -> None:
+    def fake_close_db_connection(conn_id: str) -> None:
         _ = conn_id
 
     @activity.defn(name="call_gemini")
-    async def fake_call_gemini(prompt: str) -> str:
+    def fake_call_gemini(prompt: str) -> str:
         _ = prompt
         msg = "Gemini is down"
         raise RuntimeError(msg)
 
     @activity.defn(name="save_to_db")
-    async def fake_save_to_db(conn_id: str, prompt: str, response: str) -> int:
+    def fake_save_to_db(conn_id: str, prompt: str, response: str) -> int:
         _ = (conn_id, prompt, response)
         nonlocal save_called
         save_called = True
@@ -218,20 +219,20 @@ async def test_workflow_always_closes_connection_on_success(
     closed_ids: list[str] = []
 
     @activity.defn(name="open_db_connection")
-    async def fake_open_db_connection() -> str:
+    def fake_open_db_connection() -> str:
         return _FAKE_CONN_ID
 
     @activity.defn(name="close_db_connection")
-    async def fake_close_db_connection(conn_id: str) -> None:
+    def fake_close_db_connection(conn_id: str) -> None:
         closed_ids.append(conn_id)
 
     @activity.defn(name="call_gemini")
-    async def fake_call_gemini(prompt: str) -> str:
+    def fake_call_gemini(prompt: str) -> str:
         _ = prompt
         return "response"
 
     @activity.defn(name="save_to_db")
-    async def fake_save_to_db(conn_id: str, prompt: str, response: str) -> int:
+    def fake_save_to_db(conn_id: str, prompt: str, response: str) -> int:
         _ = (conn_id, prompt, response)
         return 1
 
@@ -257,21 +258,21 @@ async def test_workflow_always_closes_connection_on_gemini_failure(
     closed_ids: list[str] = []
 
     @activity.defn(name="open_db_connection")
-    async def fake_open_db_connection() -> str:
+    def fake_open_db_connection() -> str:
         return _FAKE_CONN_ID
 
     @activity.defn(name="close_db_connection")
-    async def fake_close_db_connection(conn_id: str) -> None:
+    def fake_close_db_connection(conn_id: str) -> None:
         closed_ids.append(conn_id)
 
     @activity.defn(name="call_gemini")
-    async def fake_call_gemini(prompt: str) -> str:
+    def fake_call_gemini(prompt: str) -> str:
         _ = prompt
         msg = "Gemini is down"
         raise RuntimeError(msg)
 
     @activity.defn(name="save_to_db")
-    async def fake_save_to_db(conn_id: str, prompt: str, response: str) -> int:
+    def fake_save_to_db(conn_id: str, prompt: str, response: str) -> int:
         _ = (conn_id, prompt, response)
         return 1
 

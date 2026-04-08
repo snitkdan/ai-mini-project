@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """SQLite client for the {TABLE_NAME} table."""
 
 import sqlite3
@@ -25,7 +24,8 @@ class DBClient:
         conn.row_factory = sqlite3.Row
         return conn
 
-    def _row_to_transaction(self, row: sqlite3.Row) -> Transaction:
+    @staticmethod
+    def _row_to_transaction(row: sqlite3.Row) -> Transaction:
         return Transaction(**dict(row))
 
     def close(self) -> None:
