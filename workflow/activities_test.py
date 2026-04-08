@@ -8,6 +8,7 @@ import pytest
 from langchain_core.language_models.fake_chat_models import FakeListChatModel
 
 from storage.client import DBClient
+from storage.schema import CREATE_TABLE_SQL
 from workflow.activities import _DB_REGISTRY
 from workflow.activities import call_gemini
 from workflow.activities import close_db_connection
@@ -23,14 +24,7 @@ from workflow.activities import save_to_db
 def _make_db_client() -> DBClient:
     """Return a DBClient backed by an in-memory SQLite instance."""
     db = DBClient(db_path=Path(":memory:"))
-    db._conn.execute("""
-        CREATE TABLE IF NOT EXISTS transactions (
-            id        INTEGER PRIMARY KEY AUTOINCREMENT,
-            prompt    TEXT    NOT NULL,
-            timestamp TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-            response  TEXT    NOT NULL
-        )
-        """)
+    db._conn.execute(CREATE_TABLE_SQL)
     db._conn.commit()
     return db
 
