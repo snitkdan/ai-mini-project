@@ -68,9 +68,9 @@ jobs:
     container: *ci-container
     steps:
       - uses: actions/checkout@v4
-      - run: radon cc client server storage workflow proto -a -nc --exclude experimental,proto/generated
-      - run: radon mi client server storage workflow proto --exclude experimental,proto/generated
-      - run: xenon --max-absolute B --max-modules A --max-average A client server storage workflow proto --exclude experimental,proto/generated
+      - run: radon cc . -a -nc --exclude experimental,proto/generated,.venv/
+      - run: radon mi . --exclude experimental,proto/generated,.venv/
+      - run: xenon --max-absolute B --max-modules A --max-average A . --exclude experimental,proto/generated,.venv/
 
   proto-gen:
     runs-on: ubuntu-latest

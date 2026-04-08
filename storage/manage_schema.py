@@ -163,7 +163,6 @@ def insert_add_param(source: str, col_name: str, py_type: str, required: bool) -
         if required
         else f", {col_name}: Optional[{py_type}] = None"
     )
-    # Replace the closing `) -> int:` of the insert signature
     return re.sub(
         r"(def insert\(self(?:[^)]*?))\)\s*->\s*int\s*:",
         rf"\1{new_param}) -> int:",
@@ -182,36 +181,43 @@ def insert_remove_param(source: str, col_name: str) -> str:
     )
 
 
+def _find_insert_def(lines: list[str]) -> int:
+    idx = next(
+        (i for i, l in enumerate(lines) if re.match(r"\s+def insert\(", l)),
+        None,
+    )
+    if idx is None:
+        raise ValueError("insert method not found in client.py")
+    return idx
+
+
+def _find_body_start(lines: list[str], def_idx: int) -> int:
+    for i in range(def_idx, len(lines)):
+        if lines[i].rstrip().endswith(":"):
+            return i + 1
+    return def_idx + 1
+
+
+def _skip_docstring(lines: list[str], body_start: int) -> int:
+    first = lines[body_start].strip()
+    if not first.startswith('"""'):
+        return body_start
+    if first.count('"""') >= 2 and len(first) > 6:
+        return body_start + 1
+    for i in range(body_start + 1, len(lines)):
+        if '"""' in lines[i]:
+            return i + 1
+    return body_start
+
+
 def insert_add_todo(source: str) -> str:
     """Prepend raise RuntimeError('TODO: implement this') to insert body."""
     lines = source.splitlines(keepends=True)
 
-    def_idx = next(
-        (i for i, l in enumerate(lines) if re.match(r"\s+def insert\(", l)), None
-    )
-    if def_idx is None:
-        raise ValueError("insert method not found in client.py")
+    def_idx = _find_insert_def(lines)
+    body_start = _find_body_start(lines, def_idx)
+    insert_at = _skip_docstring(lines, body_start)
 
-    # Find first line of the body (after the signature's closing `:`)
-    body_start = def_idx
-    for i in range(def_idx, len(lines)):
-        if lines[i].rstrip().endswith(":"):
-            body_start = i + 1
-            break
-
-    # Skip over a docstring if present
-    insert_at = body_start
-    first = lines[body_start].strip()
-    if first.startswith('"""'):
-        if first.count('"""') >= 2 and len(first) > 6:
-            insert_at = body_start + 1  # single-line docstring
-        else:
-            for i in range(body_start + 1, len(lines)):
-                if '"""' in lines[i]:
-                    insert_at = i + 1
-                    break
-
-    # Avoid duplicating the TODO
     if any("TODO: implement this" in l for l in lines[body_start : body_start + 6]):
         return source
 
