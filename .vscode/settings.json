@@ -9,6 +9,7 @@
         "${workspaceFolder}/pyproject.toml"
     ],
     "[python]": {
+        "terminal.useEnvFile": true,
         "editor.defaultFormatter": "charliermarsh.ruff",
         "editor.formatOnSave": true,
         "editor.codeActionsOnSave": {
