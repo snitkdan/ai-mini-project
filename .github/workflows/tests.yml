@@ -1,6 +1,6 @@
 name: CI
 
-on: [push, pull_request]
+on: [push]
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -68,9 +68,8 @@ jobs:
     container: *ci-container
     steps:
       - uses: actions/checkout@v4
-      - run: radon cc . -a -nc --exclude experimental,proto/generated,.venv/
-      - run: xenon --max-absolute B --max-modules A --max-average A . --exclude experimental,proto/generated,.venv/
-
+      - run: radon cc --exclude "experimental/*,proto/generated/*,.venv/*" . -a -nc
+      - run: xenon --exclude "experimental/*,proto/generated/*,.venv/*" --max-absolute B --max-modules A --max-average A .
   proto-gen:
     runs-on: ubuntu-latest
     permissions:
