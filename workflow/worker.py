@@ -2,6 +2,7 @@
 """Run the Temporal worker that polls the gemini-echo task queue."""
 
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 from temporalio.client import Client
 from temporalio.worker import Worker
@@ -26,6 +27,7 @@ async def main() -> None:
         task_queue=TASK_QUEUE,
         workflows=[GeminiEchoWorkflow],
         activities=[call_gemini, open_db_connection, close_db_connection, save_to_db],
+        activity_executor=ThreadPoolExecutor(max_workers=5),
     )
 
     logger.info(
