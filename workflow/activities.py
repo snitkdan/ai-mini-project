@@ -7,8 +7,9 @@ import uuid
 from braintrust import init_logger
 from braintrust.integrations.langchain import BraintrustCallbackHandler
 from dotenv import load_dotenv
-from langchain_core.output_parsers import StrOutputParser
-from langchain_core.prompts import ChatPromptTemplate
+from langchain.agents import create_agent
+from langchain_core.messages import BaseMessage
+from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_google_genai import ChatGoogleGenerativeAI
 from temporalio import activity
@@ -41,17 +42,24 @@ async def call_gemini(prompt: str) -> str:
         api_key=os.environ.get("BRAINTRUST_API_KEY"),
     )
 
-    chat_prompt = ChatPromptTemplate.from_messages(
-        [
-            ("system", "You are a friendly assistant."),
-            ("human", "{prompt}"),  # noqa: RUF027
-        ]
-    )
     llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash")
-    chain = chat_prompt | llm | StrOutputParser()
+    agent = create_agent(
+        model=llm,
+        tools=[],
+        system_prompt="You are a friendly assistant.",
+    )
 
     config = RunnableConfig(callbacks=[BraintrustCallbackHandler()])
-    return await chain.ainvoke({"prompt": prompt}, config=config)
+    result: dict[str, list[BaseMessage]] = await agent.ainvoke(
+        {"messages": [HumanMessage(content=prompt)]}, config=config
+    )
+    content = result["messages"][-1].content
+    match content:
+        case str():
+            return content
+        case _:
+            err = f"Expected str content from LLM, got {type(content)}"
+            raise TypeError(err)
 
 
 @activity.defn

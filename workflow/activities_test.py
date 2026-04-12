@@ -29,7 +29,7 @@ def _make_db_client() -> DBClient:
     return db
 
 
-def _fake_llm(response: str = "Hello from Gemini!") -> FakeListChatModel:
+def _fake_llm(response: str) -> FakeListChatModel:
     return FakeListChatModel(responses=[response])
 
 
@@ -41,10 +41,13 @@ def _fake_llm(response: str = "Hello from Gemini!") -> FakeListChatModel:
 @pytest.mark.asyncio
 async def test_call_gemini_returns_text() -> None:
     """Happy path: correct text is returned from the chain."""
-    with patch("workflow.activities.ChatGoogleGenerativeAI", return_value=_fake_llm()):
+    resp = "Hello world"
+    with patch(
+        "workflow.activities.ChatGoogleGenerativeAI", return_value=_fake_llm(resp)
+    ):
         result = await call_gemini("Say hello")
 
-    assert result == "Hello from Gemini!"
+    assert result == resp
 
 
 @pytest.mark.asyncio
@@ -60,7 +63,10 @@ async def test_call_gemini_sends_prompt_in_body() -> None:
         return original(self, messages, **kwargs)
 
     with (
-        patch("workflow.activities.ChatGoogleGenerativeAI", return_value=_fake_llm()),
+        patch(
+            "workflow.activities.ChatGoogleGenerativeAI",
+            return_value=_fake_llm("test response"),
+        ),
         patch.object(FakeListChatModel, "_generate", capturing_generate),
     ):
         await call_gemini("My test prompt")
@@ -72,7 +78,10 @@ async def test_call_gemini_sends_prompt_in_body() -> None:
 async def test_call_gemini_raises_on_llm_error() -> None:
     """An exception from the LLM propagates out of call_gemini."""
     with (
-        patch("workflow.activities.ChatGoogleGenerativeAI", return_value=_fake_llm()),
+        patch(
+            "workflow.activities.ChatGoogleGenerativeAI",
+            return_value=_fake_llm("unused"),
+        ),
         patch.object(
             FakeListChatModel,
             "_generate",
