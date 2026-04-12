@@ -3,6 +3,9 @@
 import sys
 
 import grpc
+from rich.console import Console
+from rich.markdown import Markdown
+from rich.rule import Rule
 
 import proto.generated.gemini_echo_pb2 as pb2
 import proto.generated.gemini_echo_pb2_grpc as pb2_grpc
@@ -12,6 +15,8 @@ from storage.client import Transaction
 
 
 GRPC_TARGET: str = "localhost:50051"
+
+console = Console()
 
 
 def main() -> None:
@@ -30,14 +35,13 @@ def main() -> None:
     record: Transaction | None = db.latest()
 
     if record is not None:
-        logger.info("=" * 60)
-        logger.info("LATEST DATABASE RECORD")
-        logger.info("=" * 60)
-        logger.info("  ID        : %s", record.id)
-        logger.info("  Timestamp : %s", record.timestamp)
-        logger.info("  Prompt    : %s", record.prompt)
-        logger.info("  Response  : %s", record.response)
-        logger.info("=" * 60)
+        console.print(Rule("[bold cyan]LATEST DATABASE RECORD[/bold cyan]"))
+        console.print(f"[bold]ID       :[/bold] {record.id}")
+        console.print(f"[bold]Timestamp:[/bold] {record.timestamp}")
+        console.print(f"[bold]Prompt   :[/bold] {record.prompt}")
+        console.print(Rule("[bold cyan]Response[/bold cyan]"))
+        console.print(Markdown(record.response))
+        console.print(Rule())
 
     db.close()
 
