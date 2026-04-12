@@ -1,13 +1,40 @@
-# gemini-echo
-
-A gRPC → Temporal → Gemini API → SQLite pipeline.
-
 # Architecture
+## High-Level
+```mermaid
+flowchart LR
+    user["User (Terminal)"]
+    app["Simple Agent"]
+    gemini["Gemini LLM API"]
+    temporal["Temporal"]
 
+    user -->|"submits commands to"| app
+    app -->|"sends prompts to"| gemini
+    app -->|"executes workflows through"| temporal
 ```
-grpc_client  →  grpc_server  →  Temporal (GeminiEchoWorkflow)
-                                     ├─ activity: call_gemini  → Gemini API
-                                     └─ activity: save_to_db   → SQLite
+
+## Low-Level
+```mermaid
+flowchart LR
+    user["User (Terminal)"]
+
+    subgraph simple_agent["Simple Agent"]
+        client["Simple gRPC Client (Python)"]
+        grpc_server["Workflow gRPC Server (Python)"]
+        worker["Temporal Worker (Python)"]
+        db["TransactionDB (SQLite)"]
+        env["Environment Config (.env)"]
+    end
+
+    temporal["Temporal (External Workflow Platform)"]
+    gemini["Gemini LLM API"]
+
+    user -->|"runs via terminal"| client
+    client -->|"gRPC"| grpc_server
+    grpc_server -->|"Temporal SDK over gRPC"| temporal
+    temporal -->|"dispatches workflow tasks via Temporal SDK"| worker
+    worker -->|"reads configuration from .env"| env
+    worker -->|"uses LangGraph"| gemini
+    worker -->|"SQLite"| db
 ```
 
 # Setup order
