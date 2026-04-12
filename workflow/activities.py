@@ -5,9 +5,12 @@ from __future__ import annotations
 
 import uuid
 from typing import TYPE_CHECKING
+from typing import Protocol
+from typing import TypedDict
+from typing import cast
 
 from dotenv import load_dotenv
-from langchain.agents import create_agent
+from langchain.agents import create_agent  # pyright: ignore[reportUnknownVariableType]
 from langchain_core.messages import BaseMessage
 from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
@@ -19,6 +22,32 @@ from storage.client import DBClient
 
 if TYPE_CHECKING:
     from workflow.observability import ObservabilityDeps
+
+
+# --- Primarily for type-checking (start)
+class AgentContext(TypedDict):
+    user_id: str
+
+
+class HasContent(Protocol):
+    content: str
+
+
+class AgentInput(TypedDict):
+    messages: list[BaseMessage]
+
+
+class AgentResult(TypedDict):
+    messages: list[BaseMessage]
+
+
+class SupportsInvoke(Protocol):
+    def invoke(
+        self, ainput: AgentInput, config: RunnableConfig | None = None
+    ) -> AgentResult: ...
+
+
+# --- Primarily for type-checking (end)
 
 
 class Activities:
@@ -48,22 +77,19 @@ class Activities:
             model=llm,
             tools=[],
             system_prompt="You are a friendly assistant.",
+            context_schema=AgentContext,
         )
+        typed_agent = cast("SupportsInvoke", agent)
 
         callback = self.observability.make_callback_handler()
         callbacks = [callback] if callback is not None else []
         config = RunnableConfig(callbacks=callbacks)
 
-        result: dict[str, list[BaseMessage]] = agent.invoke(
-            {"messages": [HumanMessage(content=prompt)]},
-            config=config,
-        )
+        ainput = AgentInput(messages=[HumanMessage(content=prompt)])
+        result = typed_agent.invoke(ainput, config=config)
+        message = cast("HasContent", result["messages"][-1])
 
-        content = result["messages"][-1].content
-        if not isinstance(content, str):
-            err = f"Expected str content from LLM, got {type(content)}"
-            raise TypeError(err)
-        return content
+        return message.content
 
     @activity.defn
     def save_to_db(self, conn_id: str, prompt: str, response: str) -> int:

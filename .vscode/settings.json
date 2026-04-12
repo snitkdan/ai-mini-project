@@ -8,8 +8,9 @@
         "--config-file",
         "${workspaceFolder}/pyproject.toml"
     ],
+    "python.analysis.typeCheckingMode": "strict",
+    "python.terminal.useEnvFile": true,
     "[python]": {
-        "terminal.useEnvFile": true,
         "editor.defaultFormatter": "charliermarsh.ruff",
         "editor.formatOnSave": true,
         "editor.codeActionsOnSave": {
