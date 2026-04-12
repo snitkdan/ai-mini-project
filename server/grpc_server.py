@@ -9,11 +9,11 @@ from temporalio.client import Client
 import proto.generated.gemini_echo_pb2 as pb2
 import proto.generated.gemini_echo_pb2_grpc as pb2_grpc
 from logger import logger
+from workflow.constants import TASK_QUEUE
 from workflow.workflow import GeminiEchoWorkflow
 
 
 TEMPORAL_ADDRESS: str = "localhost:7233"
-TASK_QUEUE: str = "gemini-echo"
 GRPC_PORT: str = "[::]:50051"
 
 

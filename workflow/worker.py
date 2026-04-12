@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-"""Run the Temporal worker that polls the gemini-echo task queue."""
+from __future__ import annotations
 
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
@@ -8,32 +7,33 @@ from temporalio.client import Client
 from temporalio.worker import Worker
 
 from logger import logger
-from workflow.activities import call_gemini
-from workflow.activities import close_db_connection
-from workflow.activities import open_db_connection
-from workflow.activities import save_to_db
+from workflow.activities import Activities
+from workflow.constants import TASK_QUEUE
+from workflow.observability import BraintrustDeps
 from workflow.workflow import GeminiEchoWorkflow
 
 
-TEMPORAL_ADDRESS: str = "localhost:7233"
-TASK_QUEUE: str = "gemini-echo"
-
-
 async def main() -> None:
-    client: Client = await Client.connect(TEMPORAL_ADDRESS)
+    client = await Client.connect("localhost:7233")
 
-    worker: Worker = Worker(
-        client,
-        task_queue=TASK_QUEUE,
-        workflows=[GeminiEchoWorkflow],
-        activities=[call_gemini, open_db_connection, close_db_connection, save_to_db],
-        activity_executor=ThreadPoolExecutor(max_workers=5),
-    )
+    activities = Activities(observability=BraintrustDeps())
 
-    logger.info(
-        f"Worker started — task queue: {TASK_QUEUE!r}  server: {TEMPORAL_ADDRESS}"
-    )
-    await worker.run()
+    with ThreadPoolExecutor(max_workers=10) as activity_executor:
+        worker = Worker(
+            client,
+            task_queue=TASK_QUEUE,
+            workflows=[GeminiEchoWorkflow],
+            activities=[
+                activities.open_db_connection,
+                activities.close_db_connection,
+                activities.call_gemini,
+                activities.save_to_db,
+            ],
+            activity_executor=activity_executor,
+        )
+
+        logger.info("Worker started")
+        await worker.run()
 
 
 if __name__ == "__main__":

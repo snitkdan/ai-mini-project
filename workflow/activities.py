@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Temporal activities: call Gemini API and persist result to SQLite."""
 
-import os
-import uuid
+from __future__ import annotations
 
-from braintrust import init_logger
-from braintrust.integrations.langchain import BraintrustCallbackHandler
+import uuid
+from typing import TYPE_CHECKING
+
 from dotenv import load_dotenv
 from langchain.agents import create_agent
 from langchain_core.messages import BaseMessage
@@ -17,55 +17,58 @@ from temporalio import activity
 from storage.client import DBClient
 
 
-_DB_REGISTRY: dict[str, DBClient] = {}
+if TYPE_CHECKING:
+    from workflow.observability import ObservabilityDeps
 
 
-@activity.defn
-def open_db_connection() -> str:
-    conn_id = str(uuid.uuid4())
-    _DB_REGISTRY[conn_id] = DBClient()
-    return conn_id
+class Activities:
+    def __init__(self, observability: ObservabilityDeps) -> None:
+        self.observability = observability
+        self.db_registry: dict[str, DBClient] = {}
 
+    @activity.defn
+    def open_db_connection(self) -> str:
+        conn_id = str(uuid.uuid4())
+        self.db_registry[conn_id] = DBClient()
+        return conn_id
 
-@activity.defn
-def close_db_connection(conn_id: str) -> None:
-    db = _DB_REGISTRY.pop(conn_id, None)
-    if db is not None:
-        db.close()
+    @activity.defn
+    def close_db_connection(self, conn_id: str) -> None:
+        db = self.db_registry.pop(conn_id, None)
+        if db is not None:
+            db.close()
 
+    @activity.defn
+    def call_gemini(self, prompt: str) -> str:
+        load_dotenv()
+        self.observability.init()
 
-@activity.defn
-async def call_gemini(prompt: str) -> str:
-    load_dotenv()
-    init_logger(
-        project="ai-mini-project",
-        api_key=os.environ.get("BRAINTRUST_API_KEY"),
-    )
+        llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash")
+        agent = create_agent(
+            model=llm,
+            tools=[],
+            system_prompt="You are a friendly assistant.",
+        )
 
-    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash")
-    agent = create_agent(
-        model=llm,
-        tools=[],
-        system_prompt="You are a friendly assistant.",
-    )
+        callback = self.observability.make_callback_handler()
+        callbacks = [callback] if callback is not None else []
+        config = RunnableConfig(callbacks=callbacks)
 
-    config = RunnableConfig(callbacks=[BraintrustCallbackHandler()])
-    result: dict[str, list[BaseMessage]] = await agent.ainvoke(
-        {"messages": [HumanMessage(content=prompt)]}, config=config
-    )
-    content = result["messages"][-1].content
-    match content:
-        case str():
-            return content
-        case _:
+        result: dict[str, list[BaseMessage]] = agent.invoke(
+            {"messages": [HumanMessage(content=prompt)]},
+            config=config,
+        )
+
+        content = result["messages"][-1].content
+        if not isinstance(content, str):
             err = f"Expected str content from LLM, got {type(content)}"
             raise TypeError(err)
+        return content
 
-
-@activity.defn
-def save_to_db(conn_id: str, prompt: str, response: str) -> int:
-    db = _DB_REGISTRY.get(conn_id)
-    if db is None:
-        msg = f"No DB connection found for id: {conn_id}"
-        raise RuntimeError(msg)
-    return db.insert(prompt=prompt, response=response)
+    @activity.defn
+    def save_to_db(self, conn_id: str, prompt: str, response: str) -> int:
+        db = self.db_registry.get(conn_id)
+        if db is None:
+            err = f"No DB connection found for id: {conn_id}"
+            raise RuntimeError(err)
+        return db.insert(prompt=prompt, response=response)

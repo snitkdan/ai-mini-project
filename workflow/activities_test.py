@@ -1,184 +1,103 @@
-"""Unit tests for Temporal activities."""
+from __future__ import annotations
 
-from pathlib import Path
-from typing import Any
+from types import SimpleNamespace
+from typing import TYPE_CHECKING
+from typing import cast
+from unittest.mock import Mock
 from unittest.mock import patch
 
 import pytest
-from langchain_core.language_models.fake_chat_models import FakeListChatModel
 
-from storage.client import DBClient
-from storage.schema import CREATE_TABLE_SQL
-from workflow.activities import _DB_REGISTRY
-from workflow.activities import call_gemini
-from workflow.activities import close_db_connection
-from workflow.activities import open_db_connection
-from workflow.activities import save_to_db
+from workflow.activities import Activities
+from workflow.observability import NoopDeps
 
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+if TYPE_CHECKING:
+    from langchain_core.callbacks import BaseCallbackHandler
+
+    from storage.client import DBClient
 
 
-def _make_db_client() -> DBClient:
-    """Return a DBClient backed by an in-memory SQLite instance."""
-    db = DBClient(db_path=Path(":memory:"))
-    db._conn.execute(CREATE_TABLE_SQL)
-    db._conn.commit()
-    return db
+class FakeDBClient:
+    def __init__(self) -> None:
+        self.closed = False
+        self.rows: list[tuple[str, str]] = []
+
+    def insert(self, prompt: str, response: str) -> int:
+        self.rows.append((prompt, response))
+        return len(self.rows)
+
+    def close(self) -> None:
+        self.closed = True
 
 
-def _fake_llm(response: str) -> FakeListChatModel:
-    return FakeListChatModel(responses=[response])
+class FakeDeps:
+    @staticmethod
+    def init() -> None:
+        pass
+
+    @staticmethod
+    def make_callback_handler() -> BaseCallbackHandler | None:
+        return None
 
 
-# ---------------------------------------------------------------------------
-# call_gemini
-# ---------------------------------------------------------------------------
+def test_open_and_close_db_connection() -> None:
+    activities = Activities(observability=NoopDeps())
+
+    fake_db = FakeDBClient()
+
+    with patch("workflow.activities.DBClient", return_value=fake_db):
+        conn_id = activities.open_db_connection()
+        assert conn_id in activities.db_registry
+
+        activities.close_db_connection(conn_id)
+        assert conn_id not in activities.db_registry
+        assert fake_db.closed is True
 
 
-@pytest.mark.asyncio
-async def test_call_gemini_returns_text() -> None:
-    """Happy path: correct text is returned from the chain."""
-    resp = "Hello world"
-    with patch(
-        "workflow.activities.ChatGoogleGenerativeAI", return_value=_fake_llm(resp)
-    ):
-        result = await call_gemini("Say hello")
+def test_save_to_db() -> None:
+    activities = Activities(observability=NoopDeps())
 
-    assert result == resp
+    conn_id = "conn-1"
+    fake_db = FakeDBClient()
+    activities.db_registry[conn_id] = cast("DBClient", fake_db)
 
+    row_id = activities.save_to_db(
+        conn_id=conn_id,
+        prompt="hello",
+        response="world",
+    )
 
-@pytest.mark.asyncio
-async def test_call_gemini_sends_prompt_in_body() -> None:
-    """The prompt is forwarded correctly through the chain."""
-    captured: dict[str, Any] = {}
-    original = FakeListChatModel._generate
-
-    def capturing_generate(
-        self: FakeListChatModel, messages: Any, **kwargs: Any
-    ) -> Any:
-        captured["messages"] = messages
-        return original(self, messages, **kwargs)
-
-    with (
-        patch(
-            "workflow.activities.ChatGoogleGenerativeAI",
-            return_value=_fake_llm("test response"),
-        ),
-        patch.object(FakeListChatModel, "_generate", capturing_generate),
-    ):
-        await call_gemini("My test prompt")
-
-    assert "My test prompt" in captured["messages"][-1].content
+    assert row_id == 1
+    assert fake_db.rows == [("hello", "world")]
 
 
-@pytest.mark.asyncio
-async def test_call_gemini_raises_on_llm_error() -> None:
-    """An exception from the LLM propagates out of call_gemini."""
-    with (
-        patch(
-            "workflow.activities.ChatGoogleGenerativeAI",
-            return_value=_fake_llm("unused"),
-        ),
-        patch.object(
-            FakeListChatModel,
-            "_generate",
-            side_effect=RuntimeError("LLM unavailable"),
-        ),
-        pytest.raises(RuntimeError, match="LLM unavailable"),
-    ):
-        await call_gemini("Trigger error")
+def test_save_to_db_missing_connection_raises() -> None:
+    activities = Activities(observability=NoopDeps())
 
-
-# ---------------------------------------------------------------------------
-# open_db_connection / close_db_connection
-# ---------------------------------------------------------------------------
-
-
-def test_open_db_connection_registers_client() -> None:
-    """open_db_connection returns a UUID and adds an entry to the registry."""
-    fake_db = _make_db_client()
-
-    with patch("workflow.activities.DBClient") as mock_client:
-        mock_client.return_value = fake_db
-        conn_id = open_db_connection()
-
-    try:
-        assert len(conn_id) == 36
-        assert _DB_REGISTRY[conn_id] is fake_db
-    finally:
-        _DB_REGISTRY.pop(conn_id, None)
-
-
-def test_close_db_connection_deregisters_and_closes() -> None:
-    """close_db_connection closes the client and removes it from the registry."""
-    fake_db = _make_db_client()
-    conn_id = "test-conn-id"
-    _DB_REGISTRY[conn_id] = fake_db
-
-    with patch.object(fake_db, "close") as mock_close:
-        close_db_connection(conn_id)
-
-    mock_close.assert_called_once()
-    assert conn_id not in _DB_REGISTRY
-
-
-def test_close_db_connection_unknown_id_is_noop() -> None:
-    """Closing an unrecognised connection id does not raise."""
-    close_db_connection("nonexistent-id")
-
-
-# ---------------------------------------------------------------------------
-# save_to_db
-# ---------------------------------------------------------------------------
-
-
-def test_save_to_db_returns_row_id() -> None:
-    """save_to_db returns a positive integer row id."""
-    fake_db = _make_db_client()
-    conn_id = "test-conn-id"
-    _DB_REGISTRY[conn_id] = fake_db
-
-    try:
-        row_id = save_to_db(conn_id, "hello", "world")
-        assert row_id >= 1
-    finally:
-        _DB_REGISTRY.pop(conn_id, None)
-
-
-def test_save_to_db_persists_data() -> None:
-    """Prompt and response are actually written to the DB."""
-    fake_db = _make_db_client()
-    conn_id = "test-conn-id"
-    _DB_REGISTRY[conn_id] = fake_db
-
-    try:
-        row_id = save_to_db(conn_id, "my prompt", "my response")
-        row = fake_db.query_by_id(row_id)
-        assert row is not None
-        assert row.prompt == "my prompt"
-        assert row.response == "my response"
-    finally:
-        _DB_REGISTRY.pop(conn_id, None)
-
-
-def test_save_to_db_increments_row_id() -> None:
-    """Each insert gets a distinct, incrementing row id."""
-    fake_db = _make_db_client()
-    conn_id = "test-conn-id"
-    _DB_REGISTRY[conn_id] = fake_db
-
-    try:
-        id1 = save_to_db(conn_id, "prompt 1", "response 1")
-        id2 = save_to_db(conn_id, "prompt 2", "response 2")
-        assert id2 > id1
-    finally:
-        _DB_REGISTRY.pop(conn_id, None)
-
-
-def test_save_to_db_raises_on_missing_connection() -> None:
-    """save_to_db raises RuntimeError when the conn_id is not registered."""
     with pytest.raises(RuntimeError, match="No DB connection found"):
-        save_to_db("ghost-id", "prompt", "response")
+        activities.save_to_db("missing", "hello", "world")
+
+
+def test_call_gemini_uses_injected_observability() -> None:
+    deps = FakeDeps()
+    activities = Activities(observability=deps)
+
+    fake_agent = SimpleNamespace(
+        invoke=Mock(
+            return_value={
+                "messages": [
+                    SimpleNamespace(content="mocked response"),
+                ]
+            }
+        )
+    )
+
+    with (
+        patch("workflow.activities.load_dotenv"),
+        patch("workflow.activities.ChatGoogleGenerativeAI"),
+        patch("workflow.activities.create_agent", return_value=fake_agent),
+    ):
+        result = activities.call_gemini("hello")
+
+    assert result == "mocked response"

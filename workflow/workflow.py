@@ -1,16 +1,13 @@
-"""Temporal workflow: orchestrate Gemini call → DB save."""
+"""Temporal workflow: orchestrate Gemini call -> DB save."""
+
+from __future__ import annotations
 
 from datetime import timedelta
+from typing import cast
 
 from temporalio import workflow
 from temporalio.common import RetryPolicy
 
-
-with workflow.unsafe.imports_passed_through():
-    from workflow.activities import call_gemini
-    from workflow.activities import close_db_connection
-    from workflow.activities import open_db_connection
-    from workflow.activities import save_to_db
 
 _RETRY_POLICY = RetryPolicy(maximum_attempts=3)
 
@@ -23,22 +20,30 @@ class GeminiEchoWorkflow:
     @workflow.run
     async def run(self, prompt: str) -> str:  # noqa: PLR6301
         conn_id: str | None = None
+        response = ""
+
         try:
-            conn_id = await workflow.execute_activity(
-                open_db_connection,
-                start_to_close_timeout=_DB_TIMEOUT,
-                retry_policy=_RETRY_POLICY,
+            conn_id = cast(
+                "str",
+                await workflow.execute_activity(
+                    "open_db_connection",
+                    start_to_close_timeout=_DB_TIMEOUT,
+                    retry_policy=_RETRY_POLICY,
+                ),
             )
 
-            response: str = await workflow.execute_activity(
-                call_gemini,
-                prompt,
-                start_to_close_timeout=_GEMINI_TIMEOUT,
-                retry_policy=_RETRY_POLICY,
+            response = cast(
+                "str",
+                await workflow.execute_activity(
+                    "call_gemini",
+                    prompt,
+                    start_to_close_timeout=_GEMINI_TIMEOUT,
+                    retry_policy=_RETRY_POLICY,
+                ),
             )
 
             await workflow.execute_activity(
-                save_to_db,
+                "save_to_db",
                 args=[conn_id, prompt, response],
                 start_to_close_timeout=_DB_TIMEOUT,
                 retry_policy=_RETRY_POLICY,
@@ -46,7 +51,7 @@ class GeminiEchoWorkflow:
         finally:
             if conn_id is not None:
                 await workflow.execute_activity(
-                    close_db_connection,
+                    "close_db_connection",
                     conn_id,
                     start_to_close_timeout=_DB_TIMEOUT,
                     retry_policy=_RETRY_POLICY,
