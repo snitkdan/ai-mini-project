@@ -5,13 +5,10 @@ from __future__ import annotations
 
 import uuid
 from typing import TYPE_CHECKING
-from typing import Protocol
 from typing import TypedDict
-from typing import cast
 
 from dotenv import load_dotenv
 from langchain.agents import create_agent  # pyright: ignore[reportUnknownVariableType]
-from langchain_core.messages import BaseMessage
 from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -24,30 +21,8 @@ if TYPE_CHECKING:
     from workflow.observability import ObservabilityDeps
 
 
-# --- Primarily for type-checking (start)
 class AgentContext(TypedDict):
     user_id: str
-
-
-class HasContent(Protocol):
-    content: str
-
-
-class AgentInput(TypedDict):
-    messages: list[BaseMessage]
-
-
-class AgentResult(TypedDict):
-    messages: list[BaseMessage]
-
-
-class SupportsInvoke(Protocol):
-    def invoke(
-        self, ainput: AgentInput, config: RunnableConfig | None = None
-    ) -> AgentResult: ...
-
-
-# --- Primarily for type-checking (end)
 
 
 class Activities:
@@ -79,17 +54,19 @@ class Activities:
             system_prompt="You are a friendly assistant.",
             context_schema=AgentContext,
         )
-        typed_agent = cast("SupportsInvoke", agent)
 
         callback = self.observability.make_callback_handler()
         callbacks = [callback] if callback is not None else []
         config = RunnableConfig(callbacks=callbacks)
 
-        ainput = AgentInput(messages=[HumanMessage(content=prompt)])
-        result = typed_agent.invoke(ainput, config=config)
-        message = cast("HasContent", result["messages"][-1])
+        result = agent.invoke(  # pyright: ignore[reportUnknownMemberType]
+            {"messages": [HumanMessage(content=prompt)]},
+            config=config,
+        )
+        message = result["messages"][-1]
+        content = message.content
 
-        return message.content
+        return str(content)
 
     @activity.defn
     def save_to_db(self, conn_id: str, prompt: str, response: str) -> int:
