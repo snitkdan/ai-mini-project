@@ -1,24 +1,37 @@
+Here’s an updated minimal `README.md` for the new web flow:
+
 # Architecture
+
 ## High-Level
+
 ```mermaid
 flowchart LR
-    user["User (Terminal)"]
-    app["Simple Agent"]
-    gemini["Gemini LLM API"]
+    user["User (Browser)"]
+    frontend["SvelteKit Web App"]
+    api["FastAPI"]
+    grpc["gRPC Server"]
     temporal["Temporal"]
+    gemini["Gemini LLM API"]
 
-    user -->|"submits commands to"| app
-    app -->|"sends prompts to"| gemini
-    app -->|"executes workflows through"| temporal
+    user -->|"submits prompt to"| frontend
+    frontend -->|"POST /prompt"| api
+    api -->|"gRPC"| grpc
+    grpc -->|"starts / queries workflows via"| temporal
+    temporal -->|"runs workflow tasks"| gemini
 ```
 
 ## Low-Level
+
 ```mermaid
 flowchart LR
-    user["User (Terminal)"]
+    user["User (Browser)"]
 
-    subgraph simple_agent["Simple Agent"]
-        client["Simple gRPC Client (Python)"]
+    subgraph web["Web App"]
+        frontend["SvelteKit + Tailwind + shadcn-svelte"]
+    end
+
+    subgraph backend["Backend"]
+        api["FastAPI"]
         grpc_server["Workflow gRPC Server (Python)"]
         worker["Temporal Worker (Python)"]
         db["TransactionDB (SQLite)"]
@@ -28,86 +41,98 @@ flowchart LR
     temporal["Temporal (External Workflow Platform)"]
     gemini["Gemini LLM API"]
 
-    user -->|"runs via terminal"| client
-    client -->|"gRPC"| grpc_server
+    user -->|"uses in browser"| frontend
+    frontend -->|"JSON / HTTP"| api
+    api -->|"gRPC"| grpc_server
     grpc_server -->|"Temporal SDK over gRPC"| temporal
-    temporal -->|"dispatches workflow tasks via Temporal SDK"| worker
-    worker -->|"reads configuration from .env"| env
-    worker -->|"uses LangGraph"| gemini
-    worker -->|"SQLite"| db
+    temporal -->|"dispatches workflow tasks"| worker
+    worker -->|"reads configuration from"| env
+    worker -->|"calls"| gemini
+    worker -->|"writes / reads"| db
 ```
+
+# Main technologies
+
+- Frontend: `SvelteKit`, `Tailwind CSS`, `shadcn-svelte`
+- Backend API: `FastAPI`, `uvicorn`
+- RPC: `gRPC` / `grpcio`
+- Workflow runtime: `Temporal`
+- Storage: `SQLite`
+- LLM: `Gemini`
 
 # Setup order
 
-### 1. Compile proto stubs
+## 1. Compile proto stubs
 
 ```bash
 python -m proto.regen_proto
 ```
 
-### 2. Initialise the database
+## 2. Initialise the database
 
 ```bash
 python storage/init_db.py
 ```
 
-### 3. Add your Gemini API key
+## 3. Add your Gemini API key
 
 ```bash
 echo "GEMINI_API_KEY=your_key_here" > .env
 ```
 
-# Running (3 terminals, all from project root)
-## Script-based
-```
-$ ./start.sh
-```
-Kicks off background jobs for temporal, worker, and gRPC server. 
+# Running locally
 
-Check running background jobs with `$ jobs -l`.
-
-## Manual
-### Terminal 1 — Temporal dev server
+## Terminal 1 — Run back-end
 
 ```bash
-temporal server start-dev
+./start.sh
 ```
 
-### Terminal 2 — Temporal worker
+## Terminal 2 — Run front-end
 
 ```bash
-python -m workflow.worker
+./start-web.sh
 ```
 
-### Terminal 3 — gRPC server
+## Logs
+All logs for both terminals stored in logs/
 
-```bash
-python -m server.grpc_server
-```
+# Local URLs
 
-## Sending a prompt
+- Frontend: `http://localhost:5173`
+- FastAPI: `http://localhost:8000`
+- Health check: `http://localhost:8000/healthz`
 
-```bash
-python -m client.grpc_client "What is the speed of light?"
-```
+# Notes
+
+- The browser does not talk to gRPC directly.
+- The frontend sends JSON/HTTP requests to FastAPI.
+- FastAPI calls the existing gRPC server.
+- Responses are rendered as plain text in the UI.
+
 # CI / Docker
-Dockerfile contains the deps, docker.yml contains the container image workflow, tests.yml contains the actual CI jobs based on this container image. 
 
-## Running docker file locally
-```i
-$ colima start # starts the docker daemon
-$ docker build -t ci-test . # build the container locally
-$ docker run --rm -it -v "$PWD:/app" -w /app ci-test sh # interactive shell within container
-$ # run commands like you would in the venv
-$ colima stop
+`Dockerfile` contains the deps, `docker.yml` contains the container image workflow, and `tests.yml` contains the CI jobs based on that image.
+
+## Running Docker locally
+
+```bash
+colima start
+docker build -t ci-test .
+docker run --rm -it -v "$PWD:/app" -w /app ci-test sh
+colima stop
 ```
 
 # Links / Credentials
-## View Gemini usage here
+
+## Gemini usage
+
 https://aistudio.google.com/
 
 ## Braintrust
+
 https://www.braintrust.dev/app/snitkdan-test/p/My%20Project?onboarding=true
- 
-## Google Account (for AppPasswords)
+
+## Google Account
+
 https://myaccount.google.com/

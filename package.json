@@ -1,0 +1,11 @@
+{
+  "devDependencies": {
+    "autoprefixer": "^10.5.0",
+    "postcss": "^8.5.12",
+    "tailwindcss": "^4.2.4"
+  },
+  "dependencies": {
+    "dompurify": "^3.4.1",
+    "marked": "^18.0.2"
+  }
+}

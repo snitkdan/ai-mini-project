@@ -1,9 +1,29 @@
 prompt-scratch.txt
 .pyi
-.venv
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Environment / secrets
 .env
-__pycache__
+
+# Databases
 *.db
 *.sqlite
 *.sqlite3
-logs
+
+# Logs
+logs/
+*.log
+
+# Node
+node_modules/
+web/node_modules/
+
+# SvelteKit / Vite
+web/.svelte-kit/
+web/build/
+web/dist/
+web/.vite/
